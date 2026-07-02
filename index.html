@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<!-- TALLY — Text Editor / Analyzer | version 2026.07.02 -->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TALLY — Text Editor / Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#101318;
+  --panel:#1a1f26;
+  --panel2:#151a20;
+  --line:#2a323c;
+  --line2:#39434f;
+  --text:#c9d2dc;
+  --dim:#6e7a86;
+  --amber:#ffb36b;
+  --ember:#e0572f;
+  --sel:#7fd0e4;
+  --good:#8de0a0;
+  --warn:#ffd27f;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --ui:'Chakra Petch','Hiragino Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(1200px 600px at 70% -10%,rgba(255,179,107,.05),transparent 60%),
+    var(--bg);
+  color:var(--text);font-family:var(--ui);font-size:13px;
+  display:flex;flex-direction:column;min-height:100vh;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:radial-gradient(rgba(120,140,160,.08) 1px,transparent 1px);
+  background-size:26px 26px;
+}
+
+/* ---------- top bar ---------- */
+#appbar{
+  height:46px;display:flex;align-items:center;gap:14px;padding:0 16px;
+  background:linear-gradient(#1c222a,#161b21);border-bottom:1px solid var(--line);
+  position:relative;z-index:10;flex:none;
+}
+#logo{display:flex;align-items:baseline;gap:8px;flex:none}
+#logo .name{font-weight:700;font-size:17px;letter-spacing:.22em;color:var(--amber)}
+#logo .sub{font-size:10px;letter-spacing:.14em;color:var(--dim);white-space:nowrap}
+#logo .ver{font-size:10px;letter-spacing:.1em;color:var(--dim);opacity:.6;white-space:nowrap}
+.spacer{flex:1}
+#hint{font-size:11px;color:var(--dim);letter-spacing:.05em}
+.btn{
+  font-family:var(--ui);font-size:12px;font-weight:600;letter-spacing:.04em;
+  color:var(--text);background:#222a33;border:1px solid var(--line2);
+  border-radius:4px;padding:6px 12px;cursor:pointer;line-height:1;
+}
+.btn:hover{background:#2b3540;border-color:#4a5663}
+.btn:active{transform:translateY(1px)}
+.btn.warm{color:#1a120c;background:linear-gradient(#ffb36b,#ef8a4a);border-color:#b86a35}
+.btn.warm:hover{background:linear-gradient(#ffc285,#f59658)}
+
+/* ---------- layout ---------- */
+#wrap{
+  flex:1;display:grid;grid-template-columns:1fr 340px;gap:0;
+  position:relative;z-index:1;min-height:0;
+}
+@media(max-width:860px){#wrap{grid-template-columns:1fr}}
+
+/* ---------- editor ---------- */
+#editorpane{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid var(--line)}
+#edtoolbar{
+  display:flex;align-items:center;gap:6px;padding:7px 12px;flex-wrap:wrap;
+  background:var(--panel2);border-bottom:1px solid var(--line);flex:none;
+}
+.tbtn{
+  font-family:var(--ui);font-size:11px;font-weight:600;letter-spacing:.03em;
+  color:var(--text);background:transparent;border:1px solid transparent;
+  border-radius:4px;padding:4px 9px;cursor:pointer;line-height:1;
+}
+.tbtn:hover{background:#252d37;border-color:var(--line2)}
+.tbtn:active{transform:translateY(1px)}
+.tbtn.on{background:#2a323c;border-color:var(--line2);color:var(--amber)}
+.tsep{width:1px;height:16px;background:var(--line);margin:0 4px}
+#edtoolbar label{font-size:10.5px;color:var(--dim);letter-spacing:.04em;display:flex;align-items:center;gap:5px;cursor:pointer}
+#edtoolbar input[type=number]{
+  font-family:var(--mono);font-size:11px;color:var(--text);width:62px;
+  background:#222a33;border:1px solid var(--line2);border-radius:4px;padding:3px 6px;
+}
+
+/* editor body: left line-number gutter + textarea + right mora overlay */
+#edbody{flex:1;position:relative;min-height:0;display:flex;background:#0d1014;overflow:hidden}
+#gutter{
+  flex:none;width:42px;overflow:hidden;background:var(--panel2);
+  border-right:1px solid var(--line);padding:18px 0;
+}
+#gutter .gl{
+  font-family:var(--mono);font-size:11px;line-height:1.85;height:1.85em;
+  display:flex;align-items:center;justify-content:flex-end;padding:0 8px 0 4px;
+  color:#3d4855;white-space:nowrap;
+}
+#gutter .gl.long{color:var(--ember)}
+
+/* the editor area wraps textarea + overlay, sharing identical metrics */
+#edmain{flex:1;position:relative;min-width:0;overflow:hidden}
+#edmain.droptarget::after{
+  content:"ファイルをドロップして開く";
+  position:absolute;inset:6px;z-index:20;pointer-events:none;
+  display:flex;align-items:center;justify-content:center;
+  border:2px dashed var(--amber);border-radius:8px;
+  background:rgba(255,179,107,.08);color:var(--amber);
+  font-family:var(--ui);font-size:14px;letter-spacing:.1em;
+}
+/* shared text metrics for textarea, mirror, and whitespace layer */
+#editor,#mirror,#wsLayer{
+  font-family:var(--mono);font-size:14px;line-height:1.85;letter-spacing:.01em;
+  padding:18px 22px;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;
+  tab-size:8;-moz-tab-size:8;border:0;margin:0;
+}
+#editor{
+  position:absolute;inset:0;width:100%;height:100%;resize:none;outline:none;
+  background:transparent;color:var(--text);overflow-y:scroll;z-index:2;
+}
+#editor::selection{background:rgba(127,208,228,.28)}
+#editor::placeholder{color:#333d48}
+/* mirror: invisible clone used only to measure each visual line's height */
+#mirror{
+  position:absolute;inset:0;width:100%;height:100%;overflow:hidden;
+  visibility:hidden;pointer-events:none;color:transparent;z-index:1;
+}
+/* whitespace layer: renders space/full-width-space/newline glyphs under the caret text */
+#wsLayer{
+  position:absolute;inset:0;width:100%;height:100%;overflow:hidden;
+  pointer-events:none;color:transparent;z-index:1;display:none;
+}
+#wsLayer.on{display:block}
+/* each ws span keeps the original (transparent) whitespace for exact width,
+   and overlays a centered glyph via the inner <i>, so alignment never drifts */
+#wsLayer .wsx{position:relative}
+#wsLayer .wsx > i{
+  position:absolute;left:0;top:0;width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  font-style:normal;font-size:11px;line-height:1;
+}
+#wsLayer .wsx-half > i{color:#566372}
+#wsLayer .wsx-full > i{color:#7a5e3e}   /* warm tint = full-width space */
+#wsLayer .wsx-tab > i{color:#566372;justify-content:flex-start;padding-left:2px}
+#wsLayer .wsx-nl{display:inline;position:relative}
+#wsLayer .wsx-nl > i{position:absolute;left:0;top:0;width:0.8em;height:1.85em;color:#46525f;display:flex;align-items:center;justify-content:flex-start;overflow:visible}
+/* overlay holds the floating mora badges, scrolls with the textarea */
+#moraOverlay{
+  position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:3;
+}
+#moraOverlay .mb{
+  position:absolute;right:10px;transform:translateY(-50%);
+  font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.02em;
+  color:var(--amber);background:rgba(13,16,20,.82);
+  border:1px solid var(--line2);border-radius:10px;padding:1px 7px;line-height:1.5;
+  white-space:nowrap;
+}
+#moraOverlay .mb.long{color:var(--ember);border-color:#6b3a2a}
+
+/* ---------- stats panel ---------- */
+#stats{display:flex;flex-direction:column;background:var(--panel);overflow-y:auto;min-height:0}
+.bighero{padding:20px 20px 16px;border-bottom:1px solid var(--line);background:var(--panel2)}
+.bighero .lbl{font-size:10px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase}
+.bighero .num{
+  font-family:var(--mono);font-weight:500;font-size:44px;line-height:1;color:var(--amber);
+  margin-top:6px;letter-spacing:-.01em;
+}
+.bighero .num small{font-size:15px;color:var(--dim);margin-left:8px;letter-spacing:.05em}
+.bighero .sub2{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:8px}
+.bighero .sub2 b{color:var(--text);font-weight:500}
+.bighero .delta{font-family:var(--mono);font-size:11px;margin-top:6px;color:var(--dim)}
+.bighero .delta b.up{color:var(--good)}
+.bighero .delta b.down{color:var(--ember)}
+
+.section{padding:14px 20px;border-bottom:1px solid var(--line)}
+.section h3{
+  font-size:10px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase;
+  font-weight:600;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;
+}
+.section h3 .tag{font-size:9px;color:var(--amber);letter-spacing:.1em;opacity:.8}
+.row{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0}
+.row .k{font-size:12px;color:var(--text);letter-spacing:.02em}
+.row .k small{color:var(--dim);font-size:10px}
+.row .v{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:500}
+.row .v.dim{color:var(--dim)}
+.row .v.warnv{color:var(--warn)}
+.row .v.badv{color:var(--ember)}
+
+/* target meter */
+#targetbar{display:none}
+#targetbar.on{display:block}
+.meter{
+  height:8px;border-radius:4px;background:#0d1014;border:1px solid var(--line);
+  overflow:hidden;margin-top:8px;position:relative;
+}
+.meter .fill{height:100%;width:0;background:linear-gradient(90deg,#ef8a4a,var(--amber));transition:width .15s,background .2s}
+.meter.over .fill{background:linear-gradient(90deg,#c0492f,var(--ember))}
+.meterlbl{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;margin-top:7px;color:var(--dim)}
+.meterlbl .pct{color:var(--amber)}
+.meterlbl .pct.over{color:var(--ember)}
+
+/* bar viz for composition */
+.compbar{display:flex;height:7px;border-radius:4px;overflow:hidden;margin-bottom:11px;background:#0d1014;border:1px solid var(--line)}
+.compbar i{height:100%}
+.compbar .k{background:var(--ember)}
+.compbar .h{background:var(--amber)}
+.compbar .t{background:var(--sel)}
+.compbar .a{background:var(--good)}
+.compbar .o{background:#4a5663}
+.leg{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:10px;color:var(--dim);margin-bottom:4px}
+.leg span{display:flex;align-items:center;gap:4px}
+.leg i{width:8px;height:8px;border-radius:2px;display:inline-block}
+
+/* readability flags */
+#readFlags .flag{
+  font-size:11px;padding:7px 9px;border-radius:5px;margin-top:7px;line-height:1.5;
+  background:#0d1014;border:1px solid var(--line);color:var(--dim);
+}
+#readFlags .flag.warn{border-color:#6b5826;color:var(--warn)}
+#readFlags .flag.ok{border-color:#2f5236;color:var(--good)}
+
+/* mora preset chips */
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.chip{
+  font-family:var(--mono);font-size:11px;padding:4px 9px;border-radius:12px;cursor:pointer;
+  background:#222a33;border:1px solid var(--line2);color:var(--dim);
+}
+.chip:hover{border-color:#4a5663;color:var(--text)}
+.chip.on{background:#2a323c;border-color:var(--amber);color:var(--amber)}
+
+/* presets row */
+#presetRow{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+#presetRow .ppill{
+  font-family:var(--mono);font-size:10.5px;padding:4px 8px;border-radius:4px;cursor:pointer;
+  background:#222a33;border:1px solid var(--line2);color:var(--text);display:flex;align-items:center;gap:6px;
+}
+#presetRow .ppill:hover{border-color:#4a5663}
+#presetRow .ppill .x{color:var(--dim);font-size:11px}
+#presetRow .ppill .x:hover{color:var(--ember)}
+
+/* ---------- temp save slots ---------- */
+#slotbar{
+  flex:none;display:flex;align-items:center;gap:8px;padding:7px 12px;
+  background:var(--panel2);border-top:1px solid var(--line);
+}
+#slotbar .slabel{font-size:10px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;flex:none}
+#slotbar .shint{font-size:10px;color:#3d4855;letter-spacing:.03em;margin-left:auto;white-space:nowrap}
+.slot{
+  flex:0 1 180px;min-width:84px;display:flex;align-items:center;gap:7px;
+  font-family:var(--ui);font-size:11px;letter-spacing:.02em;
+  color:var(--dim);background:#1a2027;border:1px dashed var(--line2);
+  border-radius:5px;padding:6px 9px;cursor:pointer;line-height:1.3;text-align:left;overflow:hidden;
+}
+.slot:hover{border-color:#4a5663}
+.slot:active{transform:translateY(1px)}
+.slot .si{
+  flex:none;width:16px;height:16px;border-radius:3px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:10px;background:#2a323c;color:var(--dim);
+}
+.slot .sp{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);font-size:11px}
+.slot.filled{
+  border-style:solid;border-color:#b86a35;color:var(--amber);
+  background:linear-gradient(#241c14,#1d1812);
+}
+.slot.filled .si{background:var(--amber);color:#1a120c}
+.slot.filled .sp{color:var(--amber)}
+
+/* ---------- bottom status ---------- */
+#statusbar{
+  height:28px;flex:none;display:flex;align-items:center;gap:18px;padding:0 16px;
+  background:var(--panel2);border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:10.5px;color:var(--dim);
+  position:relative;z-index:10;white-space:nowrap;overflow:hidden;
+}
+#statusbar b{color:var(--text);font-weight:500}
+#statusbar .seldim{color:var(--sel)}
+#statusbar .saved{color:var(--good)}
+</style>
+</head>
+<body>
+
+<div id="appbar">
+  <div id="logo"><span class="name">TALLY</span><span class="sub">TEXT EDITOR / ANALYZER</span><span class="ver">v2026.07.02</span></div>
+  <div class="spacer"></div>
+  <span id="hint">原稿・歌詞・概要欄テキストを貼り付け</span>
+  <button class="btn" id="openbtn">OPEN</button>
+  <input type="file" id="fileInput" accept=".txt,.md,.lrc,.srt,.csv,.log,text/plain" style="display:none">
+  <button class="btn" id="snapBtn">SNAPSHOT</button>
+  <button class="btn" id="savebtn">SAVE .txt</button>
+  <button class="btn" id="copybtn">COPY</button>
+  <button class="btn" id="clearbtn">CLEAR</button>
+</div>
+
+<div id="wrap">
+  <div id="editorpane">
+    <div id="edtoolbar">
+      <button class="tbtn on" data-mode="jp">日本語原稿</button>
+      <button class="tbtn" data-mode="lyric">作詞</button>
+      <button class="tbtn" data-mode="tw">SNS/X</button>
+      <button class="tbtn" data-mode="yt">YT概要欄</button>
+      <button class="tbtn" data-mode="raw">汎用</button>
+      <span class="tsep"></span>
+      <label><input type="checkbox" id="cjkOnly"> CJKのみ計数</label>
+      <label><input type="checkbox" id="showGutter" checked> 行末モーラ</label>
+      <label title="ファ・ねぇ等の小書き母音を独立1拍として数える"><input type="checkbox" id="moraSplitVowel"> 小書ァを1拍</label>
+      <label title="半角␣・全角□・改行↵ を可視化"><input type="checkbox" id="showWS"> 空白可視化</label>
+      <span class="tsep"></span>
+      <label>目標 <input type="number" id="targetInput" min="0" step="50" placeholder="0"></label>
+    </div>
+    <div id="edbody">
+      <div id="gutter"></div>
+      <div id="edmain">
+        <div id="mirror"></div>
+        <div id="wsLayer"></div>
+        <textarea id="editor" spellcheck="false" placeholder="ここにテキストを入力 / 貼り付け…"></textarea>
+        <div id="moraOverlay"></div>
+      </div>
+    </div>
+    <div id="slotbar">
+      <span class="slabel">一時保存</span>
+      <button class="slot" data-slot="0"><span class="si">1</span><span class="sp">空き</span></button>
+      <button class="slot" data-slot="1"><span class="si">2</span><span class="sp">空き</span></button>
+      <button class="slot" data-slot="2"><span class="si">3</span><span class="sp">空き</span></button>
+      <span class="shint">空き=本文を退避 / 保持=カーソル位置へ差し戻し</span>
+    </div>
+  </div>
+
+  <div id="stats">
+    <div class="bighero">
+      <div class="lbl">Characters</div>
+      <div class="num"><span id="charCount">0</span><small>字</small></div>
+      <div class="sub2">空白除く <b id="charNoSpace">0</b> ／ 改行除く <b id="charNoNL">0</b></div>
+      <div class="delta" id="deltaLine" style="display:none">前回比 <b id="deltaVal">0</b> <span id="deltaTime" style="opacity:.6"></span></div>
+    </div>
+
+    <div class="section" id="targetbar">
+      <h3>Target</h3>
+      <div class="meter" id="meter"><div class="fill" id="meterFill"></div></div>
+      <div class="meterlbl">
+        <span id="meterText">0 / 0</span>
+        <span class="pct" id="meterPct">0%</span>
+      </div>
+      <div id="presetRow"></div>
+    </div>
+
+    <div class="section" id="moraSec" style="display:none">
+      <h3>Mora <span class="tag">作詞モード</span></h3>
+      <div class="row"><span class="k">総モーラ数 <small>拍</small></span><span class="v" id="moraTotal" style="color:var(--amber)">0</span></div>
+      <div class="row"><span class="k">行あたり平均</span><span class="v" id="moraAvg">0</span></div>
+      <div class="row"><span class="k">最長行 / 最短行</span><span class="v" id="moraMinMax">0 / 0</span></div>
+      <div style="font-size:10px;color:var(--dim);margin-top:8px;line-height:1.5">
+        拗音(きゃ)は1拍、促音(っ)・撥音(ん)・長音(ー)は各1拍。漢字は読みが確定しないため計数対象外 —— <b style="color:var(--amber)">歌詞はひらがな表記</b>を前提に、行末の <b style="color:var(--amber)">♪n</b> で拍数を表示します。
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Counts</h3>
+      <div class="row"><span class="k">単語数</span><span class="v" id="words">0</span></div>
+      <div class="row"><span class="k">行数</span><span class="v" id="lines">0</span></div>
+      <div class="row"><span class="k">段落数</span><span class="v" id="paras">0</span></div>
+      <div class="row"><span class="k">文数</span><span class="v" id="sentences">0</span></div>
+    </div>
+
+    <div class="section">
+      <h3>Composition</h3>
+      <div class="compbar" id="compBar">
+        <i class="k" id="cbK"></i><i class="h" id="cbH"></i><i class="t" id="cbT"></i><i class="a" id="cbA"></i><i class="o" id="cbO"></i>
+      </div>
+      <div class="leg">
+        <span><i style="background:var(--ember)"></i>漢字</span>
+        <span><i style="background:var(--amber)"></i>ひらがな</span>
+        <span><i style="background:var(--sel)"></i>カタカナ</span>
+        <span><i style="background:var(--good)"></i>英数字</span>
+        <span><i style="background:#4a5663"></i>記号</span>
+      </div>
+      <div class="row"><span class="k">漢字</span><span class="v" id="kanji">0</span></div>
+      <div class="row"><span class="k">ひらがな</span><span class="v" id="hira">0</span></div>
+      <div class="row"><span class="k">カタカナ</span><span class="v" id="kata">0</span></div>
+      <div class="row"><span class="k">英数字</span><span class="v" id="alnum">0</span></div>
+      <div class="row"><span class="k">記号・その他</span><span class="v" id="other">0</span></div>
+    </div>
+
+    <div class="section" id="readSec">
+      <h3>Readability <span class="tag">可読性</span></h3>
+      <div class="row"><span class="k">平均文長 <small>字/文</small></span><span class="v" id="avgSent">0</span></div>
+      <div class="row"><span class="k">漢字比率</span><span class="v" id="kanjiRatio">0%</span></div>
+      <div id="readFlags"></div>
+    </div>
+
+    <div class="section" id="snsSec" style="display:none">
+      <h3>SNS <span class="tag">X / 概要欄</span></h3>
+      <div class="row"><span class="k">X実効文字数 <small>全角=2,URL=23</small></span><span class="v" id="xCount">0</span></div>
+      <div class="row"><span class="k">ハッシュタグ</span><span class="v" id="tagCount">0</span></div>
+      <div class="row"><span class="k">メンション</span><span class="v" id="mentionCount">0</span></div>
+      <div class="row"><span class="k">URL</span><span class="v" id="urlCount">0</span></div>
+      <div class="row"><span class="k">絵文字</span><span class="v" id="emojiCount">0</span></div>
+    </div>
+
+    <div class="section">
+      <h3>Estimates</h3>
+      <div class="row"><span class="k">音読時間 <small>@400字/分</small></span><span class="v" id="readTime">0:00</span></div>
+      <div class="row"><span class="k">原稿用紙 <small>400字</small></span><span class="v" id="genko">0</span></div>
+      <div class="row"><span class="k">バイト数 <small>UTF-8</small></span><span class="v" id="bytes">0</span></div>
+    </div>
+  </div>
+</div>
+
+<div id="statusbar">
+  <span>MODE <b id="stMode">日本語原稿</b></span>
+  <span>CURSOR <b id="stCursor">1:1</b></span>
+  <span class="seldim" id="stSel" style="display:none">SEL <b id="stSelN">0</b></span>
+  <span class="spacer"></span>
+  <span class="saved" id="stSaved"></span>
+  <span id="stLimit"></span>
+</div>
+
+<script>
+const ed = document.getElementById('editor');
+const gutter = document.getElementById('gutter');
+const mirror = document.getElementById('mirror');
+const wsLayer = document.getElementById('wsLayer');
+const moraOverlay = document.getElementById('moraOverlay');
+const $ = id => document.getElementById(id);
+
+const MODES = {
+  jp:    {name:'日本語原稿', limit:0},
+  lyric: {name:'作詞',       limit:0},
+  tw:    {name:'SNS/X',      limit:280},
+  yt:    {name:'YT概要欄',   limit:5000},
+  raw:   {name:'汎用',       limit:0},
+};
+let mode = 'jp';
+
+const LS = {
+  text:'tally.text', mode:'tally.mode', target:'tally.target',
+  cjk:'tally.cjk', gut:'tally.gutter', snap:'tally.snap', presets:'tally.presets', sv:'tally.splitvowel', ws:'tally.showws'
+};
+
+const segWord = (typeof Intl!=='undefined' && Intl.Segmenter)
+  ? new Intl.Segmenter('ja',{granularity:'word'}) : null;
+const segGr = (typeof Intl!=='undefined' && Intl.Segmenter)
+  ? new Intl.Segmenter('ja',{granularity:'grapheme'}) : null;
+
+function countWords(t){
+  if(!t.trim()) return 0;
+  if(segWord){let n=0;for(const s of segWord.segment(t)) if(s.isWordLike) n++;return n;}
+  return (t.trim().match(/\S+/g)||[]).length;
+}
+
+// ---- mora counting (kana-based; ignores non-kana) ----
+const SMALL_YOON = 'ゃゅょャュョ';          // yoon: always merges with preceding mora
+const SMALL_VOWEL = 'ぁぃぅぇぉァィゥェォ';  // small vowels: ambiguous (merge vs. own mora)
+function countMora(line){
+  let m=0;
+  const mergeVowel = !$('moraSplitVowel') || !$('moraSplitVowel').checked;
+  for(const c of [...line]){
+    const cp=c.codePointAt(0);
+    const isHira = cp>=0x3041&&cp<=0x3096;
+    const isKata = (cp>=0x30A1&&cp<=0x30FA)||(cp>=0xFF66&&cp<=0xFF9F);
+    const isLong = c==='ー'||c==='—'||c==='〜'||c==='～';
+    if(isHira||isKata){
+      if(SMALL_YOON.includes(c)) continue;            // きゃ → 1拍
+      if(SMALL_VOWEL.includes(c) && mergeVowel) continue; // ファ → 融合(既定)
+      m++;
+    } else if(isLong){ m++; }
+  }
+  return m;
+}
+
+let lastSnapshot=null;
+
+function analyze(save=true){
+  const t = ed.value;
+  const chars = [...t];
+  const total = chars.length;
+  const noSpace = chars.filter(c=>!/\s/.test(c)).length;
+  const noNL = chars.filter(c=>c!=='\n'&&c!=='\r').length;
+
+  let kanji=0,hira=0,kata=0,alnum=0,other=0;
+  for(const c of chars){
+    const cp=c.codePointAt(0);
+    if(/\s/.test(c)) continue;
+    if((cp>=0x4E00&&cp<=0x9FFF)||(cp>=0x3400&&cp<=0x4DBF)) kanji++;
+    else if(cp>=0x3040&&cp<=0x309F) hira++;
+    else if((cp>=0x30A0&&cp<=0x30FF)||(cp>=0xFF66&&cp<=0xFF9F)) kata++;
+    else if(/[0-9A-Za-zＡ-Ｚａ-ｚ０-９]/.test(c)) alnum++;
+    else other++;
+  }
+  const cjk=kanji+hira+kata;
+  const useCJK=$('cjkOnly').checked;
+  const displayCount=useCJK?cjk:total;
+
+  $('charCount').textContent=displayCount.toLocaleString();
+  $('charNoSpace').textContent=noSpace.toLocaleString();
+  $('charNoNL').textContent=noNL.toLocaleString();
+
+  const wc=countWords(t);
+  const lineArr=t===''?[]:t.split('\n');
+  const paraN=t.trim()===''?0:t.trim().split(/\n\s*\n/).filter(p=>p.trim()).length;
+  const sentArr=t.match(/[^。．.!?！？\n]+[。．.!?！？]+/g)||[];
+  const sentN=(t.match(/[。．.!?！？]+/g)||[]).length;
+  $('words').textContent=wc.toLocaleString();
+  $('lines').textContent=lineArr.length.toLocaleString();
+  $('paras').textContent=paraN.toLocaleString();
+  $('sentences').textContent=sentN.toLocaleString();
+
+  $('kanji').textContent=kanji.toLocaleString();
+  $('hira').textContent=hira.toLocaleString();
+  $('kata').textContent=kata.toLocaleString();
+  $('alnum').textContent=alnum.toLocaleString();
+  $('other').textContent=other.toLocaleString();
+
+  // composition bar
+  const sum=Math.max(kanji+hira+kata+alnum+other,1);
+  $('cbK').style.width=(kanji/sum*100)+'%';
+  $('cbH').style.width=(hira/sum*100)+'%';
+  $('cbT').style.width=(kata/sum*100)+'%';
+  $('cbA').style.width=(alnum/sum*100)+'%';
+  $('cbO').style.width=(other/sum*100)+'%';
+
+  // readability
+  const cjkBody=cjk+alnum;
+  const avgSent= sentN>0 ? Math.round(cjkBody/sentN) : 0;
+  const kanjiRatio= cjkBody>0 ? Math.round(kanji/cjkBody*100) : 0;
+  $('avgSent').textContent=avgSent;
+  const krEl=$('kanjiRatio'); krEl.textContent=kanjiRatio+'%';
+  krEl.className='v'+(kanjiRatio>45?' badv':kanjiRatio>38?' warnv':'');
+
+  const flags=$('readFlags'); flags.innerHTML='';
+  const addFlag=(cls,txt)=>{const d=document.createElement('div');d.className='flag '+cls;d.textContent=txt;flags.appendChild(d);};
+  let longSents=sentArr.filter(s=>[...s].length>80).length;
+  if(t.trim()===''){}
+  else{
+    if(avgSent>60) addFlag('warn','平均文長が長め（'+avgSent+'字）。一文を分割すると読みやすくなります');
+    if(longSents>0) addFlag('warn','80字超の長文が '+longSents+' 箇所');
+    if(kanjiRatio>45) addFlag('warn','漢字比率が高め（'+kanjiRatio+'%）。硬い印象になりがちです');
+    if(avgSent<=60 && kanjiRatio<=38 && longSents===0) addFlag('ok','文長・漢字比率ともに読みやすい範囲です');
+  }
+
+  // estimates
+  const secs=Math.round(noSpace/400*60);
+  $('readTime').textContent=Math.floor(secs/60)+':'+String(secs%60).padStart(2,'0');
+  $('genko').textContent=(Math.ceil(total/400)).toLocaleString()+'枚';
+  $('bytes').textContent=(new TextEncoder().encode(t).length).toLocaleString();
+
+  // mora (lyric mode)
+  let moraPerLine=[];
+  if(mode==='lyric'){
+    moraPerLine=lineArr.map(countMora);
+    const nonEmpty=moraPerLine.filter((m,i)=>lineArr[i].trim()!=='');
+    const moraTotal=moraPerLine.reduce((a,b)=>a+b,0);
+    $('moraTotal').textContent=moraTotal.toLocaleString();
+    $('moraAvg').textContent= nonEmpty.length? (moraTotal/nonEmpty.length).toFixed(1):'0';
+    $('moraMinMax').textContent= nonEmpty.length? Math.max(...nonEmpty)+' / '+Math.min(...nonEmpty):'0 / 0';
+  }
+
+  // SNS
+  if(mode==='tw'||mode==='yt'){
+    const urls=t.match(/https?:\/\/[^\s]+/g)||[];
+    const tags=t.match(/[#＃][^\s#＃]+/g)||[];
+    const mentions=t.match(/[@＠][A-Za-z0-9_]+/g)||[];
+    let emoji=0;
+    if(segGr){for(const s of segGr.segment(t)){if(/\p{Extended_Pictographic}/u.test(s.segment))emoji++;}}
+    // X effective: each char width 1 (half) or 2 (full); urls fixed 23
+    let stripped=t;
+    urls.forEach(u=>stripped=stripped.replace(u,''));
+    let xw=0;
+    for(const c of [...stripped]){
+      xw += /[\u0000-\u10FF\u2000-\u200F\u2010-\u201F\u2032-\u2037]/.test(c)?1:2;
+    }
+    xw += urls.length*23;
+    $('xCount').textContent=Math.ceil(xw/2).toLocaleString();
+    $('tagCount').textContent=tags.length;
+    $('mentionCount').textContent=mentions.length;
+    $('urlCount').textContent=urls.length;
+    $('emojiCount').textContent=emoji;
+  }
+
+  // target
+  const tgt=parseInt($('targetInput').value)||0;
+  const tb=$('targetbar');
+  if(tgt>0){
+    tb.classList.add('on');
+    const pct=Math.min(displayCount/tgt*100,100);
+    const over=displayCount>tgt;
+    $('meterFill').style.width=pct+'%';
+    $('meter').classList.toggle('over',over);
+    $('meterText').textContent=displayCount.toLocaleString()+' / '+tgt.toLocaleString();
+    const pe=$('meterPct');pe.textContent=Math.round(displayCount/tgt*100)+'%';pe.classList.toggle('over',over);
+  } else tb.classList.remove('on');
+
+  // status limit
+  const lim=MODES[mode].limit;
+  const sl=$('stLimit');
+  if(lim>0){
+    const eff= mode==='tw'? parseInt($('xCount').textContent.replace(/,/g,''))||displayCount : displayCount;
+    const rem=lim-eff;
+    sl.innerHTML='LIMIT '+(rem>=0?'残り <b style="color:var(--good)">'+rem+'</b>':'<b style="color:var(--ember)">'+(-rem)+' 超過</b>')+' / '+lim;
+  } else sl.textContent='';
+
+  // delta vs snapshot
+  if(lastSnapshot!==null){
+    const d=displayCount-lastSnapshot.count;
+    $('deltaLine').style.display='';
+    const dv=$('deltaVal');
+    dv.textContent=(d>=0?'+':'')+d.toLocaleString()+'字';
+    dv.className=d>0?'up':d<0?'down':'';
+    $('deltaTime').textContent=lastSnapshot.time;
+  } else $('deltaLine').style.display='none';
+
+  drawGutter(lineArr,moraPerLine);
+  drawWhitespace();
+
+  if(save) persist();
+}
+
+// renders whitespace glyphs in a layer perfectly aligned under the textarea text
+function drawWhitespace(){
+  const on=$('showWS').checked;
+  wsLayer.classList.toggle('on',on);
+  if(!on){wsLayer.innerHTML='';return;}
+  const t=ed.value;
+  let html='';
+  for(const c of t){
+    if(c===' '){
+      // keep a real half-width space (preserves width) with a centered dot overlaid
+      html+='<span class="wsx wsx-half"> <i>·</i></span>';
+    }else if(c==='\u3000'){
+      html+='<span class="wsx wsx-full">\u3000<i>□</i></span>';
+    }else if(c==='\t'){
+      html+='<span class="wsx wsx-tab">\t<i>→</i></span>';
+    }else if(c==='\n'){
+      html+='<span class="wsx wsx-nl"><i>↵</i></span>\n';
+    }else{
+      html+=escapeHtml(c);
+    }
+  }
+  html+='\u200b';
+  wsLayer.innerHTML=html;
+  wsLayer.scrollTop=ed.scrollTop;
+}
+
+function drawGutter(lineArr,moraPerLine){
+  const lines=lineArr.length?lineArr:[''];
+
+  // ---- left gutter: line numbers, aligned to wrapped line heights ----
+  const lineEm = parseFloat(getComputedStyle(ed).lineHeight);
+  const padTop = parseFloat(getComputedStyle(ed).paddingTop);
+  const heights = measureLineHeights(lines, lineEm);
+
+  const frag=document.createDocumentFragment();
+  let acc=padTop;
+  lines.forEach((ln,i)=>{
+    const h=heights[i];
+    const cc=[...ln].length;
+    const div=document.createElement('div');
+    div.className='gl'+(cc>40?' long':'');
+    div.style.height=h+'px';
+    div.style.lineHeight=lineEm+'px';
+    div.textContent=(i+1);
+    frag.appendChild(div);
+    acc+=h;
+  });
+  gutter.innerHTML='';
+  const pad=document.createElement('div');pad.style.height=padTop+'px';
+  gutter.appendChild(pad);
+  gutter.appendChild(frag);
+  gutter.scrollTop=ed.scrollTop;
+
+  // ---- right overlay: mora badge at the END (last wrapped row) of each line ----
+  moraOverlay.innerHTML='';
+  if(!$('showGutter').checked || mode!=='lyric') return;
+  let y=padTop;
+  lines.forEach((ln,i)=>{
+    const h=heights[i];
+    if(ln.trim()!==''){
+      const m=moraPerLine[i]||0;
+      const badge=document.createElement('div');
+      badge.className='mb'+(m>=12?' long':'');
+      badge.textContent='♪ '+m;
+      // place at vertical center of this line's LAST visual row
+      const rowH=lineEm;
+      const centerY = y + h - rowH/2 - ed.scrollTop;
+      badge.style.top=centerY+'px';
+      moraOverlay.appendChild(badge);
+    }
+    y+=h;
+  });
+}
+
+// measure wrapped height (px) of each logical line by laying them out in the mirror
+function measureLineHeights(lines,lineEm){
+  // build mirror with one block per logical line; widths match the textarea
+  const pt=parseFloat(getComputedStyle(ed).paddingTop);
+  const pl=parseFloat(getComputedStyle(ed).paddingLeft);
+  const pr=parseFloat(getComputedStyle(ed).paddingRight);
+  let html='';
+  lines.forEach(ln=>{
+    const safe = ln==='' ? '\u200b' : escapeHtml(ln);
+    html+='<div class="ml">'+safe+'</div>';
+  });
+  mirror.innerHTML=html;
+  // style the inner blocks to share textarea wrapping; clear mirror's own padding effect
+  const blocks=mirror.querySelectorAll('.ml');
+  const heights=[];
+  blocks.forEach(b=>{
+    b.style.cssText='white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;'+
+      'font-family:var(--mono);font-size:14px;line-height:'+lineEm+'px;letter-spacing:.01em;';
+  });
+  blocks.forEach(b=>{ heights.push(Math.max(b.offsetHeight,lineEm)); });
+  return heights;
+}
+function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function syncScroll(){
+  gutter.scrollTop=ed.scrollTop;
+  wsLayer.scrollTop=ed.scrollTop;
+  // overlay badges are positioned in document space minus scrollTop; redraw positions
+  const lines=ed.value===''?['']:ed.value.split('\n');
+  if(mode==='lyric' && $('showGutter').checked){
+    drawGutter(lines, lines.map(countMora));
+  }
+}
+ed.addEventListener('scroll',syncScroll);
+window.addEventListener('resize',()=>{_measCache={w:0,map:new Map()};analyze(false);});
+
+function cursorInfo(){
+  const pos=ed.selectionStart;
+  const before=ed.value.slice(0,pos);
+  const line=before.split('\n').length;
+  const col=pos-before.lastIndexOf('\n');
+  $('stCursor').textContent=line+':'+col;
+  const sel=ed.selectionEnd-ed.selectionStart;
+  const ss=$('stSel');
+  if(sel>0){ss.style.display='';$('stSelN').textContent=[...ed.value.slice(ed.selectionStart,ed.selectionEnd)].length;}
+  else ss.style.display='none';
+}
+
+function applyModeUI(){
+  $('stMode').textContent=MODES[mode].name;
+  $('moraSec').style.display= mode==='lyric'?'':'none';
+  $('snsSec').style.display=(mode==='tw'||mode==='yt')?'':'none';
+  document.querySelectorAll('.tbtn[data-mode]').forEach(x=>x.classList.toggle('on',x.dataset.mode===mode));
+}
+
+// ---- presets (target values) ----
+function loadPresets(){
+  let p=[];try{p=JSON.parse(localStorage.getItem(LS.presets)||'[]');}catch(e){}
+  const def=[140,280,500,1000,5000];
+  const all=[...new Set([...def,...p])].sort((a,b)=>a-b);
+  const row=$('presetRow');row.innerHTML='';
+  all.forEach(v=>{
+    const el=document.createElement('div');el.className='ppill';
+    el.innerHTML=v.toLocaleString()+(p.includes(v)?' <span class="x">×</span>':'');
+    el.querySelector('.x')?.addEventListener('click',e=>{e.stopPropagation();
+      p=p.filter(x=>x!==v);localStorage.setItem(LS.presets,JSON.stringify(p));loadPresets();});
+    el.addEventListener('click',()=>{$('targetInput').value=v;analyze();});
+    row.appendChild(el);
+  });
+}
+$('targetInput').addEventListener('change',()=>{
+  const v=parseInt($('targetInput').value)||0;
+  if(v>0){let p=[];try{p=JSON.parse(localStorage.getItem(LS.presets)||'[]');}catch(e){}
+    if(!p.includes(v)){p.push(v);localStorage.setItem(LS.presets,JSON.stringify(p));loadPresets();}}
+});
+
+// ---- persistence ----
+let saveTimer=null;
+function persist(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>{
+    localStorage.setItem(LS.text,ed.value);
+    localStorage.setItem(LS.mode,mode);
+    localStorage.setItem(LS.target,$('targetInput').value);
+    localStorage.setItem(LS.cjk,$('cjkOnly').checked?'1':'0');
+    localStorage.setItem(LS.gut,$('showGutter').checked?'1':'0');
+    localStorage.setItem(LS.sv,$('moraSplitVowel').checked?'1':'0');
+    localStorage.setItem(LS.ws,$('showWS').checked?'1':'0');
+    const sv=$('stSaved');sv.textContent='● SAVED';setTimeout(()=>sv.textContent='',900);
+  },400);
+}
+function restore(){
+  const t=localStorage.getItem(LS.text);if(t!==null)ed.value=t;
+  const m=localStorage.getItem(LS.mode);if(m&&MODES[m])mode=m;
+  const tg=localStorage.getItem(LS.target);if(tg)$('targetInput').value=tg;
+  $('cjkOnly').checked=localStorage.getItem(LS.cjk)==='1';
+  $('showGutter').checked=localStorage.getItem(LS.gut)!=='0';
+  $('moraSplitVowel').checked=localStorage.getItem(LS.sv)==='1';
+  $('showWS').checked=localStorage.getItem(LS.ws)==='1';
+  try{lastSnapshot=JSON.parse(localStorage.getItem(LS.snap)||'null');}catch(e){}
+}
+
+// ---- Tab key: indent / outdent (standard text-editor behavior) ----
+const TAB_STR = '\t'; // real tab char (Windows Notepad behavior)
+function replaceRange(start,end,text,selStart,selEnd){
+  ed.focus();
+  ed.setSelectionRange(start,end);
+  // insertText keeps native undo/redo stack intact
+  if(!document.execCommand('insertText',false,text)){
+    // fallback if execCommand unsupported
+    ed.value = ed.value.slice(0,start)+text+ed.value.slice(end);
+  }
+  if(selStart!=null) ed.setSelectionRange(selStart, selEnd!=null?selEnd:selStart);
+}
+ed.addEventListener('keydown',(e)=>{
+  if(e.key!=='Tab') return;
+  e.preventDefault();
+  const v=ed.value, s=ed.selectionStart, en=ed.selectionEnd;
+  const hasSel = s!==en;
+  // line range covered by selection
+  const lineStart = v.lastIndexOf('\n', s-1)+1;
+  const multiLine = hasSel && v.slice(s,en).includes('\n');
+
+  if(!e.shiftKey && !multiLine){
+    // simple insert at caret
+    replaceRange(s,en,TAB_STR, s+TAB_STR.length);
+    analyze();cursorInfo();return;
+  }
+
+  // block indent / outdent over full lines
+  let blockEnd = v.indexOf('\n', en);
+  if(blockEnd===-1) blockEnd=v.length; else if(en>s && v[en-1]==='\n') blockEnd=en-1;
+  const block = v.slice(lineStart, blockEnd);
+  const lines = block.split('\n');
+  let newSelStart=s, newSelEnd=en;
+
+  if(e.shiftKey){
+    // outdent: strip up to TAB_STR.length leading spaces (or one tab) per line
+    let firstRemoved=0, totalRemoved=0;
+    const out=lines.map((ln,i)=>{
+      let rm=0;
+      if(ln.startsWith('\t')) rm=1;
+      else { while(rm<TAB_STR.length && ln[rm]===' ') rm++; }
+      if(i===0) firstRemoved=rm;
+      totalRemoved+=rm;
+      return ln.slice(rm);
+    });
+    replaceRange(lineStart, blockEnd, out.join('\n'),
+      Math.max(lineStart, s-firstRemoved), en-totalRemoved);
+  } else {
+    // indent: prepend TAB_STR to each line
+    const out=lines.map(ln=>TAB_STR+ln);
+    replaceRange(lineStart, blockEnd, out.join('\n'),
+      s+TAB_STR.length, en+TAB_STR.length*lines.length);
+  }
+  analyze();cursorInfo();
+});
+
+// ---- events ----
+ed.addEventListener('input',()=>{analyze();cursorInfo();});
+ed.addEventListener('keyup',cursorInfo);
+ed.addEventListener('click',cursorInfo);
+ed.addEventListener('select',cursorInfo);
+$('cjkOnly').addEventListener('change',analyze);
+$('showGutter').addEventListener('change',analyze);
+$('moraSplitVowel').addEventListener('change',analyze);
+$('showWS').addEventListener('change',analyze);
+$('targetInput').addEventListener('input',analyze);
+
+document.querySelectorAll('.tbtn[data-mode]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    mode=b.dataset.mode;applyModeUI();
+    if(MODES[mode].limit>0 && !$('targetInput').value)$('targetInput').value=MODES[mode].limit;
+    analyze();
+  });
+});
+
+$('snapBtn').addEventListener('click',()=>{
+  const useCJK=$('cjkOnly').checked;
+  const cnt= useCJK ? [...ed.value].filter(c=>{const cp=c.codePointAt(0);return (cp>=0x4E00&&cp<=0x9FFF)||(cp>=0x3400&&cp<=0x4DBF)||(cp>=0x3040&&cp<=0x30FF)||(cp>=0xFF66&&cp<=0xFF9F);}).length : [...ed.value].length;
+  const now=new Date();
+  lastSnapshot={count:cnt,time:now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')};
+  localStorage.setItem(LS.snap,JSON.stringify(lastSnapshot));
+  const b=$('snapBtn');b.textContent='SAVED';setTimeout(()=>b.textContent='SNAPSHOT',1000);
+  analyze();
+});
+
+$('clearbtn').addEventListener('click',()=>{
+  if(ed.value && !confirm('テキストをクリアしますか？'))return;
+  ed.value='';ed.focus();analyze();cursorInfo();
+});
+$('copybtn').addEventListener('click',async()=>{
+  try{await navigator.clipboard.writeText(ed.value);
+    const b=$('copybtn');b.textContent='COPIED';setTimeout(()=>b.textContent='COPY',1200);}catch(e){}
+});
+
+// ---- OPEN: import text file (strips BOM, normalizes newlines to LF) ----
+function loadTextIntoEditor(raw,fname){
+  let t=raw;
+  if(t.charCodeAt(0)===0xFEFF)t=t.slice(1);      // strip UTF-8 BOM (from our own SAVE etc.)
+  t=t.replace(/\r\n|\r/g,'\n');                   // normalize CRLF/CR → LF for editing
+  ed.value=t;
+  ed.focus();ed.setSelectionRange(0,0);ed.scrollTop=0;
+  analyze();cursorInfo();
+  const b=$('openbtn');b.textContent='OPENED';setTimeout(()=>b.textContent='OPEN',1200);
+}
+function openTextFile(file){
+  if(!file)return;
+  if(file.size>5*1024*1024){alert('5MBを超えるファイルは開けません：'+file.name);return;}
+  if(ed.value.trim() && !confirm('現在のテキストを破棄して「'+file.name+'」を開きますか？'))return;
+  const r=new FileReader();
+  r.onload=()=>loadTextIntoEditor(String(r.result),file.name);
+  r.onerror=()=>alert('ファイルの読み込みに失敗しました：'+file.name);
+  r.readAsText(file,'utf-8');
+}
+$('openbtn').addEventListener('click',()=>$('fileInput').click());
+$('fileInput').addEventListener('change',e=>{
+  openTextFile(e.target.files[0]);
+  e.target.value='';                              // allow re-opening the same file
+});
+// drag & drop onto the editor area
+const edmainEl=document.getElementById('edmain');
+['dragenter','dragover'].forEach(ev=>edmainEl.addEventListener(ev,e=>{
+  if(e.dataTransfer&&[...e.dataTransfer.types].includes('Files')){
+    e.preventDefault();e.dataTransfer.dropEffect='copy';edmainEl.classList.add('droptarget');
+  }
+}));
+['dragleave','drop'].forEach(ev=>edmainEl.addEventListener(ev,()=>edmainEl.classList.remove('droptarget')));
+edmainEl.addEventListener('drop',e=>{
+  if(!e.dataTransfer||!e.dataTransfer.files.length)return;
+  e.preventDefault();
+  openTextFile(e.dataTransfer.files[0]);
+});
+
+// ---- SAVE: export as .txt (Mac/Windows safe: UTF-8 BOM + CRLF) ----
+function buildFileName(){
+  const d=new Date();
+  const p=n=>String(n).padStart(2,'0');
+  const stamp=`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+  // derive a short title from first line of text
+  const firstLine=(ed.value.split('\n').find(l=>l.trim())||'').trim();
+  let title=[...firstLine].slice(0,16).join('')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g,'')  // strip filename-illegal chars
+    .replace(/\s+/g,'_').trim();
+  const modeName=(MODES[mode]&&MODES[mode].name)?MODES[mode].name:'';
+  return `TALLY_${stamp}${modeName?'_'+modeName:''}${title?'_'+title:''}.txt`;
+}
+$('savebtn').addEventListener('click',()=>{
+  // normalize all newlines to CRLF for Windows Notepad compatibility
+  const body=ed.value.replace(/\r\n|\r|\n/g,'\r\n');
+  // UTF-8 BOM so Windows reliably detects encoding; Mac ignores it
+  const BOM='\uFEFF';
+  const blob=new Blob([BOM+body],{type:'text/plain;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=buildFileName();
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  const b=$('savebtn');b.textContent='SAVED';setTimeout(()=>b.textContent='SAVE .txt',1200);
+});
+
+// ---- temporary save slots ----
+let slots=[null,null,null];
+const LS_SLOTS='tally.slots';
+function loadSlots(){
+  try{const s=JSON.parse(localStorage.getItem(LS_SLOTS)||'null');if(Array.isArray(s)&&s.length===3)slots=s;}catch(e){}
+}
+function saveSlots(){localStorage.setItem(LS_SLOTS,JSON.stringify(slots));}
+function slotPreview(text){
+  // first 10 chars, newlines→space, trimmed
+  const oneLine=text.replace(/\s+/g,' ').trim();
+  const head=[...oneLine].slice(0,10).join('');
+  return head + ([...oneLine].length>10?'…':'');
+}
+function renderSlots(){
+  document.querySelectorAll('.slot').forEach(btn=>{
+    const i=+btn.dataset.slot;
+    const sp=btn.querySelector('.sp');
+    if(slots[i]!==null){
+      btn.classList.add('filled');
+      sp.textContent=slotPreview(slots[i])||'(空白のみ)';
+      btn.title='クリックでカーソル位置に差し戻し：'+slotPreview(slots[i]);
+    }else{
+      btn.classList.remove('filled');
+      sp.textContent='空き';
+      btn.title='クリックで現在の本文をここに退避';
+    }
+  });
+}
+function handleSlot(i){
+  if(slots[i]===null){
+    // stow: move current text into slot, clear editor
+    if(ed.value===''){return;} // nothing to stow
+    slots[i]=ed.value;
+    ed.value='';
+  }else{
+    // restore: paste at cursor, empty the slot
+    const text=slots[i];
+    const a=ed.selectionStart,b=ed.selectionEnd;
+    const v=ed.value;
+    ed.value=v.slice(0,a)+text+v.slice(b);
+    const np=a+text.length;
+    ed.setSelectionRange(np,np);
+    slots[i]=null;
+  }
+  saveSlots();renderSlots();
+  ed.focus();analyze();cursorInfo();
+}
+document.querySelectorAll('.slot').forEach(btn=>{
+  btn.addEventListener('click',()=>handleSlot(+btn.dataset.slot));
+});
+
+// init
+restore();
+loadSlots();renderSlots();
+applyModeUI();
+loadPresets();
+analyze(false);
+cursorInfo();
+ed.focus();
+</script>
+</body>
+</html>
