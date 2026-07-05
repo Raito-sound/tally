@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- TALLY — Text Editor / Analyzer | version 2026.07.05 -->
+<!-- TALLY — Text Editor / Analyzer | version 2026.07.05b -->
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -135,8 +135,8 @@ body::before{
   border-right:1px solid var(--line);padding:0;
 }
 #gutter .gl{
-  font-family:var(--mono);font-size:11px;
-  display:flex;align-items:flex-start;justify-content:flex-end;padding:0 8px 0 4px;
+  position:absolute;left:0;right:0;
+  font-family:var(--mono);font-size:11px;text-align:right;padding:0 8px 0 4px;
   color:var(--gut);white-space:nowrap;
 }
 #gutter .gl.long{color:var(--ember)}
@@ -323,7 +323,7 @@ body::before{
 <body>
 
 <div id="appbar">
-  <div id="logo"><span class="name">TALLY</span><span class="sub">TEXT EDITOR / ANALYZER</span><span class="ver">v2026.07.05</span></div>
+  <div id="logo"><span class="name">TALLY</span><span class="sub">TEXT EDITOR / ANALYZER</span><span class="ver">v2026.07.05b</span></div>
   <div class="spacer"></div>
   <span id="hint">原稿・歌詞・概要欄テキストを貼り付け</span>
   <button class="btn" id="openbtn">OPEN</button>
@@ -689,76 +689,66 @@ function drawWhitespace(){
 function drawGutter(lineArr,moraPerLine){
   const lines=lineArr.length?lineArr:[''];
 
-  // ---- left gutter: line numbers, aligned to wrapped line heights ----
+  // ---- left gutter: numbers placed at each line's measured position ----
   const lineEm = parseFloat(getComputedStyle(ed).lineHeight);
-  const padTop = parseFloat(getComputedStyle(ed).paddingTop);
-  const heights = measureLineHeights(lines, lineEm);
+  const padB = parseFloat(getComputedStyle(ed).paddingBottom);
+  const {tops,heights} = measureLines(lines, lineEm);
+  // tops[] already include the mirror's top padding = textarea's top padding
 
-  const frag=document.createDocumentFragment();
+  const inner=document.createElement('div');
+  inner.style.cssText='position:relative;height:'+
+    (tops[tops.length-1]+heights[heights.length-1]+padB)+'px;';
   lines.forEach((ln,i)=>{
-    const h=heights[i];
-    const cc=[...ln].length;
     const div=document.createElement('div');
-    div.className='gl'+(cc>40?' long':'');
-    div.style.height=h+'px';
+    div.className='gl'+([...ln].length>40?' long':'');
+    div.style.top=tops[i]+'px';
     div.style.lineHeight=lineEm+'px';
     div.textContent=(i+1);
-    frag.appendChild(div);
+    inner.appendChild(div);
   });
-  // FIX: single top spacer only (CSS padding removed — it used to double the offset)
   gutter.innerHTML='';
-  const pad=document.createElement('div');pad.style.height=padTop+'px';
-  gutter.appendChild(pad);
-  gutter.appendChild(frag);
-  const padB=document.createElement('div');padB.style.height=padTop+'px';
-  gutter.appendChild(padB);
+  gutter.appendChild(inner);
   gutter.scrollTop=ed.scrollTop;
 
   // ---- right overlay: mora badge at the END (last wrapped row) of each line ----
   moraOverlay.innerHTML='';
   if(!$('showGutter').checked || mode!=='lyric') return;
-  let y=padTop;
   lines.forEach((ln,i)=>{
-    const h=heights[i];
-    if(ln.trim()!==''){
-      const m=moraPerLine[i]||0;
-      const badge=document.createElement('div');
-      badge.className='mb'+(m>=12?' long':'');
-      badge.textContent='♪ '+m;
-      // place at vertical center of this line's LAST visual row
-      const rowH=lineEm;
-      const centerY = y + h - rowH/2 - ed.scrollTop;
-      badge.style.top=centerY+'px';
-      moraOverlay.appendChild(badge);
-    }
-    y+=h;
+    if(ln.trim()==='')return;
+    const m=moraPerLine[i]||0;
+    const badge=document.createElement('div');
+    badge.className='mb'+(m>=12?' long':'');
+    badge.textContent='♪ '+m;
+    badge.style.top=(tops[i]+heights[i]-lineEm/2-ed.scrollTop)+'px';
+    moraOverlay.appendChild(badge);
   });
 }
 
-// measure wrapped height (px) of each logical line by laying them out in the mirror
-function measureLineHeights(lines,lineEm){
-  // FIX: match the textarea's content width exactly (clientWidth excludes its scrollbar),
-  // otherwise wrap points differ and every measured height drifts
+// measure each logical line's exact position in ONE continuous mirror flow.
+// getBoundingClientRect() returns subpixel floats, so rounding errors can no
+// longer accumulate line after line (the cause of the residual drift).
+function measureLines(lines,lineEm){
   mirror.style.width=ed.clientWidth+'px';
-  const pt=parseFloat(getComputedStyle(ed).paddingTop);
-  const pl=parseFloat(getComputedStyle(ed).paddingLeft);
-  const pr=parseFloat(getComputedStyle(ed).paddingRight);
   let html='';
   lines.forEach(ln=>{
     const safe = ln==='' ? '\u200b' : escapeHtml(ln);
     html+='<div class="ml">'+safe+'</div>';
   });
   mirror.innerHTML=html;
-  // style the inner blocks to share textarea wrapping; clear mirror's own padding effect
   const blocks=mirror.querySelectorAll('.ml');
-  const heights=[];
   blocks.forEach(b=>{
     b.style.cssText='white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;'+
       'tab-size:8;-moz-tab-size:8;'+
       'font-family:var(--mono);font-size:14px;line-height:'+lineEm+'px;letter-spacing:.01em;';
   });
-  blocks.forEach(b=>{ heights.push(Math.max(b.offsetHeight,lineEm)); });
-  return heights;
+  const base=mirror.getBoundingClientRect();
+  const tops=[],heights=[];
+  blocks.forEach(b=>{
+    const r=b.getBoundingClientRect();
+    tops.push(r.top-base.top);
+    heights.push(Math.max(r.height,lineEm));
+  });
+  return {tops,heights};
 }
 function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
