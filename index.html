@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- TALLY — Text Editor / Analyzer | version 2026.07.02 -->
+<!-- TALLY — Text Editor / Analyzer | version 2026.07.05 -->
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -9,40 +9,79 @@
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#101318;
-  --panel:#1a1f26;
-  --panel2:#151a20;
-  --line:#2a323c;
-  --line2:#39434f;
-  --text:#c9d2dc;
-  --dim:#6e7a86;
-  --amber:#ffb36b;
-  --ember:#e0572f;
-  --sel:#7fd0e4;
-  --good:#8de0a0;
-  --warn:#ffd27f;
+  /* WEAVE palette — light (paper) */
+  --bg:#F1EFE8;
+  --panel:#F6F4EE;
+  --panel2:#EFECE2;
+  --line:#E2DDD0;
+  --line2:#D6CFC0;
+  --text:#2B2A26;
+  --dim:#6E6A5E;
+  --amber:#3C5A82;      /* accent: 琉球藍 (WEAVEと共通) */
+  --asoft:#DCE4EE;
+  --ember:#A34B3E;
+  --sel:#5B87B5;
+  --good:#4C7A55;
+  --warn:#A0782A;
+  --btn:#EDEAE0;
+  --btn-h:#E4E0D3;
+  --edbg:#FAF9F6;
+  --gut:#C4BEAD;
+  --ph:#B9B4A5;
+  --badge:rgba(250,249,246,.9);
+  --selbg:rgba(60,90,130,.18);
+  --wsf:#B08A4F;
+  --acc-contrast:#FFFFFF;
+  --bgfx:radial-gradient(1200px 600px at 70% -10%,rgba(60,90,130,.05),transparent 60%);
+  --dots:rgba(43,42,38,.06);
   --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
   --ui:'Chakra Petch','Hiragino Sans',system-ui,sans-serif;
+}
+body.dark{
+  /* WEAVE palette — dark */
+  --bg:#14161B;
+  --panel:#181B21;
+  --panel2:#12141A;
+  --line:#2A2E37;
+  --line2:#39434F;
+  --text:#D9D6CC;
+  --dim:#8B897F;
+  --amber:#8AA6CC;
+  --asoft:#26303F;
+  --ember:#C96A55;
+  --sel:#7FB0D0;
+  --good:#8DE0A0;
+  --warn:#FFD27F;
+  --btn:#222833;
+  --btn-h:#2B3340;
+  --edbg:#15181E;
+  --gut:#4A5460;
+  --ph:#3D4855;
+  --badge:rgba(20,22,27,.85);
+  --selbg:rgba(138,166,204,.28);
+  --wsf:#7A5E3E;
+  --acc-contrast:#14161B;
+  --bgfx:radial-gradient(1200px 600px at 70% -10%,rgba(138,166,204,.05),transparent 60%);
+  --dots:rgba(160,175,195,.07);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{
-  background:
-    radial-gradient(1200px 600px at 70% -10%,rgba(255,179,107,.05),transparent 60%),
-    var(--bg);
+  background-image:var(--bgfx);
+  background-color:var(--bg);
   color:var(--text);font-family:var(--ui);font-size:13px;
   display:flex;flex-direction:column;min-height:100vh;
 }
 body::before{
   content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
-  background-image:radial-gradient(rgba(120,140,160,.08) 1px,transparent 1px);
+  background-image:radial-gradient(var(--dots) 1px,transparent 1px);
   background-size:26px 26px;
 }
 
 /* ---------- top bar ---------- */
 #appbar{
   height:46px;display:flex;align-items:center;gap:14px;padding:0 16px;
-  background:linear-gradient(#1c222a,#161b21);border-bottom:1px solid var(--line);
+  background:var(--panel2);border-bottom:1px solid var(--line);
   position:relative;z-index:10;flex:none;
 }
 #logo{display:flex;align-items:baseline;gap:8px;flex:none}
@@ -53,13 +92,13 @@ body::before{
 #hint{font-size:11px;color:var(--dim);letter-spacing:.05em}
 .btn{
   font-family:var(--ui);font-size:12px;font-weight:600;letter-spacing:.04em;
-  color:var(--text);background:#222a33;border:1px solid var(--line2);
+  color:var(--text);background:var(--btn);border:1px solid var(--line2);
   border-radius:4px;padding:6px 12px;cursor:pointer;line-height:1;
 }
-.btn:hover{background:#2b3540;border-color:#4a5663}
+.btn:hover{background:var(--btn-h);border-color:var(--dim)}
 .btn:active{transform:translateY(1px)}
-.btn.warm{color:#1a120c;background:linear-gradient(#ffb36b,#ef8a4a);border-color:#b86a35}
-.btn.warm:hover{background:linear-gradient(#ffc285,#f59658)}
+.btn.warm{color:var(--acc-contrast);background:var(--amber);border-color:var(--amber)}
+.btn.warm:hover{opacity:.88}
 
 /* ---------- layout ---------- */
 #wrap{
@@ -79,26 +118,26 @@ body::before{
   color:var(--text);background:transparent;border:1px solid transparent;
   border-radius:4px;padding:4px 9px;cursor:pointer;line-height:1;
 }
-.tbtn:hover{background:#252d37;border-color:var(--line2)}
+.tbtn:hover{background:var(--btn-h);border-color:var(--line2)}
 .tbtn:active{transform:translateY(1px)}
-.tbtn.on{background:#2a323c;border-color:var(--line2);color:var(--amber)}
+.tbtn.on{background:var(--btn);border-color:var(--line2);color:var(--amber)}
 .tsep{width:1px;height:16px;background:var(--line);margin:0 4px}
 #edtoolbar label{font-size:10.5px;color:var(--dim);letter-spacing:.04em;display:flex;align-items:center;gap:5px;cursor:pointer}
 #edtoolbar input[type=number]{
   font-family:var(--mono);font-size:11px;color:var(--text);width:62px;
-  background:#222a33;border:1px solid var(--line2);border-radius:4px;padding:3px 6px;
+  background:var(--btn);border:1px solid var(--line2);border-radius:4px;padding:3px 6px;
 }
 
 /* editor body: left line-number gutter + textarea + right mora overlay */
-#edbody{flex:1;position:relative;min-height:0;display:flex;background:#0d1014;overflow:hidden}
+#edbody{flex:1;position:relative;min-height:0;display:flex;background:var(--edbg);overflow:hidden}
 #gutter{
   flex:none;width:42px;overflow:hidden;background:var(--panel2);
-  border-right:1px solid var(--line);padding:18px 0;
+  border-right:1px solid var(--line);padding:0;
 }
 #gutter .gl{
-  font-family:var(--mono);font-size:11px;line-height:1.85;height:1.85em;
-  display:flex;align-items:center;justify-content:flex-end;padding:0 8px 0 4px;
-  color:#3d4855;white-space:nowrap;
+  font-family:var(--mono);font-size:11px;
+  display:flex;align-items:flex-start;justify-content:flex-end;padding:0 8px 0 4px;
+  color:var(--gut);white-space:nowrap;
 }
 #gutter .gl.long{color:var(--ember)}
 
@@ -109,7 +148,7 @@ body::before{
   position:absolute;inset:6px;z-index:20;pointer-events:none;
   display:flex;align-items:center;justify-content:center;
   border:2px dashed var(--amber);border-radius:8px;
-  background:rgba(255,179,107,.08);color:var(--amber);
+  background:transparent;color:var(--amber);
   font-family:var(--ui);font-size:14px;letter-spacing:.1em;
 }
 /* shared text metrics for textarea, mirror, and whitespace layer */
@@ -122,8 +161,8 @@ body::before{
   position:absolute;inset:0;width:100%;height:100%;resize:none;outline:none;
   background:transparent;color:var(--text);overflow-y:scroll;z-index:2;
 }
-#editor::selection{background:rgba(127,208,228,.28)}
-#editor::placeholder{color:#333d48}
+#editor::selection{background:var(--selbg)}
+#editor::placeholder{color:var(--ph)}
 /* mirror: invisible clone used only to measure each visual line's height */
 #mirror{
   position:absolute;inset:0;width:100%;height:100%;overflow:hidden;
@@ -143,11 +182,11 @@ body::before{
   display:flex;align-items:center;justify-content:center;
   font-style:normal;font-size:11px;line-height:1;
 }
-#wsLayer .wsx-half > i{color:#566372}
-#wsLayer .wsx-full > i{color:#7a5e3e}   /* warm tint = full-width space */
-#wsLayer .wsx-tab > i{color:#566372;justify-content:flex-start;padding-left:2px}
+#wsLayer .wsx-half > i{color:var(--gut)}
+#wsLayer .wsx-full > i{color:var(--wsf)}   /* warm tint = full-width space */
+#wsLayer .wsx-tab > i{color:var(--gut);justify-content:flex-start;padding-left:2px}
 #wsLayer .wsx-nl{display:inline;position:relative}
-#wsLayer .wsx-nl > i{position:absolute;left:0;top:0;width:0.8em;height:1.85em;color:#46525f;display:flex;align-items:center;justify-content:flex-start;overflow:visible}
+#wsLayer .wsx-nl > i{position:absolute;left:0;top:0;width:0.8em;height:1.85em;color:var(--gut);display:flex;align-items:center;justify-content:flex-start;overflow:visible}
 /* overlay holds the floating mora badges, scrolls with the textarea */
 #moraOverlay{
   position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:3;
@@ -155,11 +194,11 @@ body::before{
 #moraOverlay .mb{
   position:absolute;right:10px;transform:translateY(-50%);
   font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.02em;
-  color:var(--amber);background:rgba(13,16,20,.82);
+  color:var(--amber);background:var(--badge);
   border:1px solid var(--line2);border-radius:10px;padding:1px 7px;line-height:1.5;
   white-space:nowrap;
 }
-#moraOverlay .mb.long{color:var(--ember);border-color:#6b3a2a}
+#moraOverlay .mb.long{color:var(--ember);border-color:var(--ember)}
 
 /* ---------- stats panel ---------- */
 #stats{display:flex;flex-direction:column;background:var(--panel);overflow-y:auto;min-height:0}
@@ -194,23 +233,23 @@ body::before{
 #targetbar{display:none}
 #targetbar.on{display:block}
 .meter{
-  height:8px;border-radius:4px;background:#0d1014;border:1px solid var(--line);
+  height:8px;border-radius:4px;background:var(--edbg);border:1px solid var(--line);
   overflow:hidden;margin-top:8px;position:relative;
 }
-.meter .fill{height:100%;width:0;background:linear-gradient(90deg,#ef8a4a,var(--amber));transition:width .15s,background .2s}
-.meter.over .fill{background:linear-gradient(90deg,#c0492f,var(--ember))}
+.meter .fill{height:100%;width:0;background:linear-gradient(90deg,var(--sel),var(--amber));transition:width .15s,background .2s}
+.meter.over .fill{background:linear-gradient(90deg,var(--ember),var(--ember))}
 .meterlbl{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;margin-top:7px;color:var(--dim)}
 .meterlbl .pct{color:var(--amber)}
 .meterlbl .pct.over{color:var(--ember)}
 
 /* bar viz for composition */
-.compbar{display:flex;height:7px;border-radius:4px;overflow:hidden;margin-bottom:11px;background:#0d1014;border:1px solid var(--line)}
+.compbar{display:flex;height:7px;border-radius:4px;overflow:hidden;margin-bottom:11px;background:var(--edbg);border:1px solid var(--line)}
 .compbar i{height:100%}
 .compbar .k{background:var(--ember)}
 .compbar .h{background:var(--amber)}
 .compbar .t{background:var(--sel)}
 .compbar .a{background:var(--good)}
-.compbar .o{background:#4a5663}
+.compbar .o{background:var(--line2)}
 .leg{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:10px;color:var(--dim);margin-bottom:4px}
 .leg span{display:flex;align-items:center;gap:4px}
 .leg i{width:8px;height:8px;border-radius:2px;display:inline-block}
@@ -218,27 +257,27 @@ body::before{
 /* readability flags */
 #readFlags .flag{
   font-size:11px;padding:7px 9px;border-radius:5px;margin-top:7px;line-height:1.5;
-  background:#0d1014;border:1px solid var(--line);color:var(--dim);
+  background:var(--edbg);border:1px solid var(--line);color:var(--dim);
 }
-#readFlags .flag.warn{border-color:#6b5826;color:var(--warn)}
-#readFlags .flag.ok{border-color:#2f5236;color:var(--good)}
+#readFlags .flag.warn{border-color:var(--warn);color:var(--warn)}
+#readFlags .flag.ok{border-color:var(--good);color:var(--good)}
 
 /* mora preset chips */
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
 .chip{
   font-family:var(--mono);font-size:11px;padding:4px 9px;border-radius:12px;cursor:pointer;
-  background:#222a33;border:1px solid var(--line2);color:var(--dim);
+  background:var(--btn);border:1px solid var(--line2);color:var(--dim);
 }
-.chip:hover{border-color:#4a5663;color:var(--text)}
-.chip.on{background:#2a323c;border-color:var(--amber);color:var(--amber)}
+.chip:hover{border-color:var(--dim);color:var(--text)}
+.chip.on{background:var(--btn-h);border-color:var(--amber);color:var(--amber)}
 
 /* presets row */
 #presetRow{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
 #presetRow .ppill{
   font-family:var(--mono);font-size:10.5px;padding:4px 8px;border-radius:4px;cursor:pointer;
-  background:#222a33;border:1px solid var(--line2);color:var(--text);display:flex;align-items:center;gap:6px;
+  background:var(--btn);border:1px solid var(--line2);color:var(--text);display:flex;align-items:center;gap:6px;
 }
-#presetRow .ppill:hover{border-color:#4a5663}
+#presetRow .ppill:hover{border-color:var(--dim)}
 #presetRow .ppill .x{color:var(--dim);font-size:11px}
 #presetRow .ppill .x:hover{color:var(--ember)}
 
@@ -248,25 +287,25 @@ body::before{
   background:var(--panel2);border-top:1px solid var(--line);
 }
 #slotbar .slabel{font-size:10px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;flex:none}
-#slotbar .shint{font-size:10px;color:#3d4855;letter-spacing:.03em;margin-left:auto;white-space:nowrap}
+#slotbar .shint{font-size:10px;color:var(--ph);letter-spacing:.03em;margin-left:auto;white-space:nowrap}
 .slot{
   flex:0 1 180px;min-width:84px;display:flex;align-items:center;gap:7px;
   font-family:var(--ui);font-size:11px;letter-spacing:.02em;
-  color:var(--dim);background:#1a2027;border:1px dashed var(--line2);
+  color:var(--dim);background:var(--btn);border:1px dashed var(--line2);
   border-radius:5px;padding:6px 9px;cursor:pointer;line-height:1.3;text-align:left;overflow:hidden;
 }
-.slot:hover{border-color:#4a5663}
+.slot:hover{border-color:var(--dim)}
 .slot:active{transform:translateY(1px)}
 .slot .si{
   flex:none;width:16px;height:16px;border-radius:3px;display:flex;align-items:center;justify-content:center;
-  font-family:var(--mono);font-size:10px;background:#2a323c;color:var(--dim);
+  font-family:var(--mono);font-size:10px;background:var(--btn-h);color:var(--dim);
 }
 .slot .sp{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);font-size:11px}
 .slot.filled{
-  border-style:solid;border-color:#b86a35;color:var(--amber);
-  background:linear-gradient(#241c14,#1d1812);
+  border-style:solid;border-color:var(--amber);color:var(--amber);
+  background:var(--asoft);
 }
-.slot.filled .si{background:var(--amber);color:#1a120c}
+.slot.filled .si{background:var(--amber);color:var(--acc-contrast)}
 .slot.filled .sp{color:var(--amber)}
 
 /* ---------- bottom status ---------- */
@@ -284,7 +323,7 @@ body::before{
 <body>
 
 <div id="appbar">
-  <div id="logo"><span class="name">TALLY</span><span class="sub">TEXT EDITOR / ANALYZER</span><span class="ver">v2026.07.02</span></div>
+  <div id="logo"><span class="name">TALLY</span><span class="sub">TEXT EDITOR / ANALYZER</span><span class="ver">v2026.07.05</span></div>
   <div class="spacer"></div>
   <span id="hint">原稿・歌詞・概要欄テキストを貼り付け</span>
   <button class="btn" id="openbtn">OPEN</button>
@@ -293,6 +332,7 @@ body::before{
   <button class="btn" id="savebtn">SAVE .txt</button>
   <button class="btn" id="copybtn">COPY</button>
   <button class="btn" id="clearbtn">CLEAR</button>
+  <button class="btn" id="themeBtn" title="ライト/ダーク切替">◐</button>
 </div>
 
 <div id="wrap">
@@ -375,7 +415,7 @@ body::before{
         <span><i style="background:var(--amber)"></i>ひらがな</span>
         <span><i style="background:var(--sel)"></i>カタカナ</span>
         <span><i style="background:var(--good)"></i>英数字</span>
-        <span><i style="background:#4a5663"></i>記号</span>
+        <span><i style="background:var(--line2)"></i>記号</span>
       </div>
       <div class="row"><span class="k">漢字</span><span class="v" id="kanji">0</span></div>
       <div class="row"><span class="k">ひらがな</span><span class="v" id="hira">0</span></div>
@@ -437,7 +477,7 @@ let mode = 'jp';
 
 const LS = {
   text:'tally.text', mode:'tally.mode', target:'tally.target',
-  cjk:'tally.cjk', gut:'tally.gutter', snap:'tally.snap', presets:'tally.presets', sv:'tally.splitvowel', ws:'tally.showws'
+  cjk:'tally.cjk', gut:'tally.gutter', snap:'tally.snap', presets:'tally.presets', sv:'tally.splitvowel', ws:'tally.showws', theme:'tally.theme'
 };
 
 const segWord = (typeof Intl!=='undefined' && Intl.Segmenter)
@@ -623,6 +663,8 @@ function drawWhitespace(){
   const on=$('showWS').checked;
   wsLayer.classList.toggle('on',on);
   if(!on){wsLayer.innerHTML='';return;}
+  // FIX: keep wrapping identical to the textarea (exclude its scrollbar width)
+  wsLayer.style.width=ed.clientWidth+'px';
   const t=ed.value;
   let html='';
   for(const c of t){
@@ -653,7 +695,6 @@ function drawGutter(lineArr,moraPerLine){
   const heights = measureLineHeights(lines, lineEm);
 
   const frag=document.createDocumentFragment();
-  let acc=padTop;
   lines.forEach((ln,i)=>{
     const h=heights[i];
     const cc=[...ln].length;
@@ -663,12 +704,14 @@ function drawGutter(lineArr,moraPerLine){
     div.style.lineHeight=lineEm+'px';
     div.textContent=(i+1);
     frag.appendChild(div);
-    acc+=h;
   });
+  // FIX: single top spacer only (CSS padding removed — it used to double the offset)
   gutter.innerHTML='';
   const pad=document.createElement('div');pad.style.height=padTop+'px';
   gutter.appendChild(pad);
   gutter.appendChild(frag);
+  const padB=document.createElement('div');padB.style.height=padTop+'px';
+  gutter.appendChild(padB);
   gutter.scrollTop=ed.scrollTop;
 
   // ---- right overlay: mora badge at the END (last wrapped row) of each line ----
@@ -694,7 +737,9 @@ function drawGutter(lineArr,moraPerLine){
 
 // measure wrapped height (px) of each logical line by laying them out in the mirror
 function measureLineHeights(lines,lineEm){
-  // build mirror with one block per logical line; widths match the textarea
+  // FIX: match the textarea's content width exactly (clientWidth excludes its scrollbar),
+  // otherwise wrap points differ and every measured height drifts
+  mirror.style.width=ed.clientWidth+'px';
   const pt=parseFloat(getComputedStyle(ed).paddingTop);
   const pl=parseFloat(getComputedStyle(ed).paddingLeft);
   const pr=parseFloat(getComputedStyle(ed).paddingRight);
@@ -709,6 +754,7 @@ function measureLineHeights(lines,lineEm){
   const heights=[];
   blocks.forEach(b=>{
     b.style.cssText='white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;'+
+      'tab-size:8;-moz-tab-size:8;'+
       'font-family:var(--mono);font-size:14px;line-height:'+lineEm+'px;letter-spacing:.01em;';
   });
   blocks.forEach(b=>{ heights.push(Math.max(b.offsetHeight,lineEm)); });
@@ -726,7 +772,7 @@ function syncScroll(){
   }
 }
 ed.addEventListener('scroll',syncScroll);
-window.addEventListener('resize',()=>{_measCache={w:0,map:new Map()};analyze(false);});
+window.addEventListener('resize',()=>analyze(false));
 
 function cursorInfo(){
   const pos=ed.selectionStart;
@@ -791,8 +837,15 @@ function restore(){
   $('showGutter').checked=localStorage.getItem(LS.gut)!=='0';
   $('moraSplitVowel').checked=localStorage.getItem(LS.sv)==='1';
   $('showWS').checked=localStorage.getItem(LS.ws)==='1';
+  if(localStorage.getItem(LS.theme)==='dark')document.body.classList.add('dark');
   try{lastSnapshot=JSON.parse(localStorage.getItem(LS.snap)||'null');}catch(e){}
 }
+
+// ---- theme ----
+$('themeBtn').addEventListener('click',()=>{
+  const dark=document.body.classList.toggle('dark');
+  localStorage.setItem(LS.theme,dark?'dark':'light');
+});
 
 // ---- Tab key: indent / outdent (standard text-editor behavior) ----
 const TAB_STR = '\t'; // real tab char (Windows Notepad behavior)
@@ -1012,6 +1065,8 @@ loadPresets();
 analyze(false);
 cursorInfo();
 ed.focus();
+// re-measure once webfonts finish loading (metrics differ before IBM Plex Mono is ready)
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>analyze(false));
 </script>
 </body>
 </html>
