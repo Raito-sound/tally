@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- TALLY — Text Editor / Analyzer | version 2026.07.07
+<!-- TALLY — Text Editor / Analyzer | version 2026.07.08
      PERF REFACTOR (iOS対応):
      - 2段階計算: 軽量統計は即時(単一ループ/正規表現なし/rAF間引き)、重い解析は入力停止後に可変デバウンス
      - レイアウトキャッシュ: 行位置測定はテキスト/幅変更時のみ。スクロールはtransformのみ
@@ -164,16 +164,20 @@ body::before{
   background:transparent;color:var(--amber);
   font-family:var(--ui);font-size:14px;letter-spacing:.1em;
 }
-/* shared text metrics for textarea and mirror */
+/* shared text metrics for textarea and mirror
+   PERF: letter-spacing はWebKitのテキストレイアウト高速パスを無効化するため
+   エディタ系には使用しない(iOS入力遅延対策) */
 #editor,#mirror{
-  font-family:var(--mono);font-size:var(--edfs);line-height:1.85;letter-spacing:.01em;
+  font-family:var(--mono);font-size:var(--edfs);line-height:1.85;
   padding:18px 22px;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;
   tab-size:8;-moz-tab-size:8;border:0;margin:0;
 }
 #editor{
   position:absolute;inset:0;width:100%;height:100%;resize:none;outline:none;
-  background:transparent;color:var(--text);overflow-y:scroll;z-index:2;
+  background:var(--edbg);color:var(--text);overflow-y:scroll;z-index:2;
 }
+/* 空白可視化ON時のみ透明化(背面レイヤーとの常時合成を避ける) */
+#editor.wsopen{background:transparent}
 #editor::selection{background:var(--selbg)}
 #editor::placeholder{color:var(--ph)}
 /* mirror: invisible clone used only to measure each logical line's height.
@@ -189,7 +193,7 @@ body::before{
 /* whitespace layer: 可視範囲の行だけを絶対配置で描画（仮想化） */
 #wsLayer{
   position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1;display:none;
-  font-family:var(--mono);font-size:var(--edfs);line-height:1.85;letter-spacing:.01em;
+  font-family:var(--mono);font-size:var(--edfs);line-height:1.85;
   color:transparent;
 }
 #wsLayer.on{display:block}
@@ -349,7 +353,7 @@ body::before{
 <body>
 
 <div id="appbar">
-  <div id="logo"><span class="name">TALLY</span><span class="sub">TEXT EDITOR / ANALYZER</span><span class="ver">v2026.07.07</span></div>
+  <div id="logo"><span class="name">TALLY</span><span class="sub">TEXT EDITOR / ANALYZER</span><span class="ver">v2026.07.08</span></div>
   <div class="spacer"></div>
   <span id="hint">原稿・歌詞・概要欄テキストを貼り付け</span>
   <button class="btn" id="openbtn">OPEN</button>
@@ -836,6 +840,7 @@ function buildBadges(ra,rb){
 function buildWS(ra,rb){
   const on=$('showWS').checked;
   wsLayer.classList.toggle('on',on);
+  ed.classList.toggle('wsopen',on);   // ON時のみ透明化(通常時は不透明で合成コスト回避)
   if(!on){wsInner.innerHTML='';return;}
   const {tops,padL,padR,width,lines}=layout;
   const cw=(width-padL-padR);
