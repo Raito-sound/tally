@@ -1,6 +1,12 @@
 <!DOCTYPE html>
-<!-- TALLY — Text Editor / Analyzer | version 2026.07.05b -->
-<html lang="ja">
+<!-- TALLY — Text Editor / Analyzer | version 2026.07.07
+     PERF REFACTOR (iOS対応):
+     - 2段階計算: 軽量統計は即時(単一ループ/正規表現なし/rAF間引き)、重い解析は入力停止後に可変デバウンス
+     - レイアウトキャッシュ: 行位置測定はテキスト/幅変更時のみ。スクロールはtransformのみ
+     - 仮想描画: 行番号/♪バッジ/空白グリフは可視範囲±300pxのみDOM化
+     - mirrorは測定後に即破棄 / IME変換中は重処理スキップ / iOSフォーカスズーム抑止(16px)
+-->
+<html lang="ja" translate="no">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -36,6 +42,11 @@
   --dots:rgba(43,42,38,.06);
   --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
   --ui:'Chakra Petch','Hiragino Sans',system-ui,sans-serif;
+  --edfs:14px;
+}
+/* iOS: 16px未満のtextareaはフォーカス時に強制ズームされるため、タッチ端末は16pxに */
+@media (pointer:coarse){
+  :root{--edfs:16px}
 }
 body.dark{
   /* WEAVE palette — dark */
@@ -66,6 +77,7 @@ body.dark{
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
+html{-webkit-text-size-adjust:100%}
 body{
   background-image:var(--bgfx);
   background-color:var(--bg);
@@ -132,8 +144,9 @@ body::before{
 #edbody{flex:1;position:relative;min-height:0;display:flex;background:var(--edbg);overflow:hidden}
 #gutter{
   flex:none;width:42px;overflow:hidden;background:var(--panel2);
-  border-right:1px solid var(--line);padding:0;
+  border-right:1px solid var(--line);padding:0;position:relative;
 }
+#gutter .ginner{position:absolute;inset:0;will-change:transform}
 #gutter .gl{
   position:absolute;left:0;right:0;
   font-family:var(--mono);font-size:11px;text-align:right;padding:0 8px 0 4px;
@@ -151,9 +164,9 @@ body::before{
   background:transparent;color:var(--amber);
   font-family:var(--ui);font-size:14px;letter-spacing:.1em;
 }
-/* shared text metrics for textarea, mirror, and whitespace layer */
-#editor,#mirror,#wsLayer{
-  font-family:var(--mono);font-size:14px;line-height:1.85;letter-spacing:.01em;
+/* shared text metrics for textarea and mirror */
+#editor,#mirror{
+  font-family:var(--mono);font-size:var(--edfs);line-height:1.85;letter-spacing:.01em;
   padding:18px 22px;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;
   tab-size:8;-moz-tab-size:8;border:0;margin:0;
 }
@@ -163,17 +176,29 @@ body::before{
 }
 #editor::selection{background:var(--selbg)}
 #editor::placeholder{color:var(--ph)}
-/* mirror: invisible clone used only to measure each visual line's height */
+/* mirror: invisible clone used only to measure each logical line's height.
+   PERF: 測定後は中身を即破棄する（DOMノードを保持しない） */
 #mirror{
   position:absolute;inset:0;width:100%;height:100%;overflow:hidden;
   visibility:hidden;pointer-events:none;color:transparent;z-index:1;
 }
-/* whitespace layer: renders space/full-width-space/newline glyphs under the caret text */
+#mirror .ml{
+  white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;
+  tab-size:8;-moz-tab-size:8;
+}
+/* whitespace layer: 可視範囲の行だけを絶対配置で描画（仮想化） */
 #wsLayer{
-  position:absolute;inset:0;width:100%;height:100%;overflow:hidden;
-  pointer-events:none;color:transparent;z-index:1;display:none;
+  position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1;display:none;
+  font-family:var(--mono);font-size:var(--edfs);line-height:1.85;letter-spacing:.01em;
+  color:transparent;
 }
 #wsLayer.on{display:block}
+#wsLayer .wsinner{position:absolute;inset:0;will-change:transform}
+#wsLayer .wsline{
+  position:absolute;
+  white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;
+  tab-size:8;-moz-tab-size:8;
+}
 /* each ws span keeps the original (transparent) whitespace for exact width,
    and overlays a centered glyph via the inner <i>, so alignment never drifts */
 #wsLayer .wsx{position:relative}
@@ -187,10 +212,11 @@ body::before{
 #wsLayer .wsx-tab > i{color:var(--gut);justify-content:flex-start;padding-left:2px}
 #wsLayer .wsx-nl{display:inline;position:relative}
 #wsLayer .wsx-nl > i{position:absolute;left:0;top:0;width:0.8em;height:1.85em;color:var(--gut);display:flex;align-items:center;justify-content:flex-start;overflow:visible}
-/* overlay holds the floating mora badges, scrolls with the textarea */
+/* overlay holds the floating mora badges (virtualized) */
 #moraOverlay{
   position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:3;
 }
+#moraOverlay .oinner{position:absolute;inset:0;will-change:transform}
 #moraOverlay .mb{
   position:absolute;right:10px;transform:translateY(-50%);
   font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.02em;
@@ -201,7 +227,7 @@ body::before{
 #moraOverlay .mb.long{color:var(--ember);border-color:var(--ember)}
 
 /* ---------- stats panel ---------- */
-#stats{display:flex;flex-direction:column;background:var(--panel);overflow-y:auto;min-height:0}
+#stats{display:flex;flex-direction:column;background:var(--panel);overflow-y:auto;min-height:0;-webkit-overflow-scrolling:touch}
 .bighero{padding:20px 20px 16px;border-bottom:1px solid var(--line);background:var(--panel2)}
 .bighero .lbl{font-size:10px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase}
 .bighero .num{
@@ -323,7 +349,7 @@ body::before{
 <body>
 
 <div id="appbar">
-  <div id="logo"><span class="name">TALLY</span><span class="sub">TEXT EDITOR / ANALYZER</span><span class="ver">v2026.07.05b</span></div>
+  <div id="logo"><span class="name">TALLY</span><span class="sub">TEXT EDITOR / ANALYZER</span><span class="ver">v2026.07.07</span></div>
   <div class="spacer"></div>
   <span id="hint">原稿・歌詞・概要欄テキストを貼り付け</span>
   <button class="btn" id="openbtn">OPEN</button>
@@ -352,12 +378,12 @@ body::before{
       <label>目標 <input type="number" id="targetInput" min="0" step="50" placeholder="0"></label>
     </div>
     <div id="edbody">
-      <div id="gutter"></div>
+      <div id="gutter"><div class="ginner" id="gutInner"></div></div>
       <div id="edmain">
         <div id="mirror"></div>
-        <div id="wsLayer"></div>
-        <textarea id="editor" spellcheck="false" placeholder="ここにテキストを入力 / 貼り付け…"></textarea>
-        <div id="moraOverlay"></div>
+        <div id="wsLayer"><div class="wsinner" id="wsInner"></div></div>
+        <textarea id="editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="ここにテキストを入力 / 貼り付け…"></textarea>
+        <div id="moraOverlay"><div class="oinner" id="ovInner"></div></div>
       </div>
     </div>
     <div id="slotbar">
@@ -459,11 +485,15 @@ body::before{
 </div>
 
 <script>
+'use strict';
 const ed = document.getElementById('editor');
 const gutter = document.getElementById('gutter');
 const mirror = document.getElementById('mirror');
 const wsLayer = document.getElementById('wsLayer');
 const moraOverlay = document.getElementById('moraOverlay');
+const gutInner = document.getElementById('gutInner');
+const wsInner = document.getElementById('wsInner');
+const ovInner = document.getElementById('ovInner');
 const $ = id => document.getElementById(id);
 
 const MODES = {
@@ -482,71 +512,78 @@ const LS = {
 
 const segWord = (typeof Intl!=='undefined' && Intl.Segmenter)
   ? new Intl.Segmenter('ja',{granularity:'word'}) : null;
-const segGr = (typeof Intl!=='undefined' && Intl.Segmenter)
-  ? new Intl.Segmenter('ja',{granularity:'grapheme'}) : null;
 
-function countWords(t){
-  if(!t.trim()) return 0;
-  if(segWord){let n=0;for(const s of segWord.segment(t)) if(s.isWordLike) n++;return n;}
-  return (t.trim().match(/\S+/g)||[]).length;
+// ==========================================================================
+// PERF CORE
+//   lightPass : 打鍵ごと(rAF間引き)。単一ループ・正規表現なし・DOM再構築なし
+//   heavyPass : 入力停止後(可変デバウンス)。行測定・モーラ・可読性・SNS・レイヤー描画
+//   layout    : 行位置キャッシュ。テキスト/幅/フォントが変わった時だけ再測定
+//   スクロール : transformのみ + 可視範囲の仮想描画(測定は一切しない)
+// ==========================================================================
+
+let layout = {valid:false, text:null, width:0, lineEm:26, padL:22, padR:22, tops:[], heights:[], lens:[], moras:null};
+let renderedRange = [-1,-1];   // 現在DOM化済みの行範囲
+let composing = false;         // IME変換中フラグ
+let lastSnapshot = null;
+const cache = {displayCount:0, total:0, noSpace:0, kanji:0, hira:0, kata:0, alnum:0, cjk:0, xEff:-1};
+
+// ---- 文字種判定(コードポイント直接比較・正規表現なし) ----
+function isWS(cp){
+  return cp===32||cp===9||cp===10||cp===13||cp===11||cp===12||
+         cp===0x3000||cp===0xA0||(cp>=0x2000&&cp<=0x200A)||
+         cp===0x2028||cp===0x2029||cp===0x205F||cp===0xFEFF;
 }
-
-// ---- mora counting (kana-based; ignores non-kana) ----
-const SMALL_YOON = 'ゃゅょャュョ';          // yoon: always merges with preceding mora
-const SMALL_VOWEL = 'ぁぃぅぇぉァィゥェォ';  // small vowels: ambiguous (merge vs. own mora)
-function countMora(line){
-  let m=0;
-  const mergeVowel = !$('moraSplitVowel') || !$('moraSplitVowel').checked;
-  for(const c of [...line]){
-    const cp=c.codePointAt(0);
-    const isHira = cp>=0x3041&&cp<=0x3096;
-    const isKata = (cp>=0x30A1&&cp<=0x30FA)||(cp>=0xFF66&&cp<=0xFF9F);
-    const isLong = c==='ー'||c==='—'||c==='〜'||c==='～';
-    if(isHira||isKata){
-      if(SMALL_YOON.includes(c)) continue;            // きゃ → 1拍
-      if(SMALL_VOWEL.includes(c) && mergeVowel) continue; // ファ → 融合(既定)
-      m++;
-    } else if(isLong){ m++; }
+function isKanji(cp){return (cp>=0x4E00&&cp<=0x9FFF)||(cp>=0x3400&&cp<=0x4DBF);}
+function isHira(cp){return cp>=0x3040&&cp<=0x309F;}
+function isKata(cp){return (cp>=0x30A0&&cp<=0x30FF)||(cp>=0xFF66&&cp<=0xFF9F);}
+function isAlnum(cp){
+  return (cp>=48&&cp<=57)||(cp>=65&&cp<=90)||(cp>=97&&cp<=122)||
+         (cp>=0xFF10&&cp<=0xFF19)||(cp>=0xFF21&&cp<=0xFF3A)||(cp>=0xFF41&&cp<=0xFF5A);
+}
+function countCodePoints(s){
+  let n=0;
+  for(let i=0;i<s.length;i++){
+    const c=s.charCodeAt(i);
+    if(c>=0xD800&&c<=0xDBFF&&i+1<s.length)i++;
+    n++;
   }
-  return m;
+  return n;
 }
 
-let lastSnapshot=null;
-
-function analyze(save=true){
-  const t = ed.value;
-  const chars = [...t];
-  const total = chars.length;
-  const noSpace = chars.filter(c=>!/\s/.test(c)).length;
-  const noNL = chars.filter(c=>c!=='\n'&&c!=='\r').length;
-
-  let kanji=0,hira=0,kata=0,alnum=0,other=0;
-  for(const c of chars){
-    const cp=c.codePointAt(0);
-    if(/\s/.test(c)) continue;
-    if((cp>=0x4E00&&cp<=0x9FFF)||(cp>=0x3400&&cp<=0x4DBF)) kanji++;
-    else if(cp>=0x3040&&cp<=0x309F) hira++;
-    else if((cp>=0x30A0&&cp<=0x30FF)||(cp>=0xFF66&&cp<=0xFF9F)) kata++;
-    else if(/[0-9A-Za-zＡ-Ｚａ-ｚ０-９]/.test(c)) alnum++;
+// ---- LIGHT PASS: 即時統計(全文1周のみ) ----
+let lightQueued=false;
+function scheduleLight(){
+  if(lightQueued)return;
+  lightQueued=true;
+  requestAnimationFrame(()=>{lightQueued=false;lightPass();});
+}
+function lightPass(){
+  const t=ed.value;
+  let total=0,noSpace=0,noNL=0,nl=0,kanji=0,hira=0,kata=0,alnum=0,other=0;
+  for(let i=0;i<t.length;i++){
+    let cp=t.charCodeAt(i);
+    if(cp>=0xD800&&cp<=0xDBFF&&i+1<t.length){cp=t.codePointAt(i);i++;}
+    total++;
+    if(cp===10)nl++;
+    if(cp!==10&&cp!==13)noNL++;
+    if(isWS(cp))continue;
+    noSpace++;
+    if(isKanji(cp))kanji++;
+    else if(isHira(cp))hira++;
+    else if(isKata(cp))kata++;
+    else if(isAlnum(cp))alnum++;
     else other++;
   }
   const cjk=kanji+hira+kata;
   const useCJK=$('cjkOnly').checked;
   const displayCount=useCJK?cjk:total;
+  cache.displayCount=displayCount;cache.total=total;cache.noSpace=noSpace;
+  cache.kanji=kanji;cache.hira=hira;cache.kata=kata;cache.alnum=alnum;cache.cjk=cjk;
 
   $('charCount').textContent=displayCount.toLocaleString();
   $('charNoSpace').textContent=noSpace.toLocaleString();
   $('charNoNL').textContent=noNL.toLocaleString();
-
-  const wc=countWords(t);
-  const lineArr=t===''?[]:t.split('\n');
-  const paraN=t.trim()===''?0:t.trim().split(/\n\s*\n/).filter(p=>p.trim()).length;
-  const sentArr=t.match(/[^。．.!?！？\n]+[。．.!?！？]+/g)||[];
-  const sentN=(t.match(/[。．.!?！？]+/g)||[]).length;
-  $('words').textContent=wc.toLocaleString();
-  $('lines').textContent=lineArr.length.toLocaleString();
-  $('paras').textContent=paraN.toLocaleString();
-  $('sentences').textContent=sentN.toLocaleString();
+  $('lines').textContent=(t===''?0:nl+1).toLocaleString();
 
   $('kanji').textContent=kanji.toLocaleString();
   $('hira').textContent=hira.toLocaleString();
@@ -554,7 +591,6 @@ function analyze(save=true){
   $('alnum').textContent=alnum.toLocaleString();
   $('other').textContent=other.toLocaleString();
 
-  // composition bar
   const sum=Math.max(kanji+hira+kata+alnum+other,1);
   $('cbK').style.width=(kanji/sum*100)+'%';
   $('cbH').style.width=(hira/sum*100)+'%';
@@ -562,63 +598,10 @@ function analyze(save=true){
   $('cbA').style.width=(alnum/sum*100)+'%';
   $('cbO').style.width=(other/sum*100)+'%';
 
-  // readability
-  const cjkBody=cjk+alnum;
-  const avgSent= sentN>0 ? Math.round(cjkBody/sentN) : 0;
-  const kanjiRatio= cjkBody>0 ? Math.round(kanji/cjkBody*100) : 0;
-  $('avgSent').textContent=avgSent;
-  const krEl=$('kanjiRatio'); krEl.textContent=kanjiRatio+'%';
-  krEl.className='v'+(kanjiRatio>45?' badv':kanjiRatio>38?' warnv':'');
-
-  const flags=$('readFlags'); flags.innerHTML='';
-  const addFlag=(cls,txt)=>{const d=document.createElement('div');d.className='flag '+cls;d.textContent=txt;flags.appendChild(d);};
-  let longSents=sentArr.filter(s=>[...s].length>80).length;
-  if(t.trim()===''){}
-  else{
-    if(avgSent>60) addFlag('warn','平均文長が長め（'+avgSent+'字）。一文を分割すると読みやすくなります');
-    if(longSents>0) addFlag('warn','80字超の長文が '+longSents+' 箇所');
-    if(kanjiRatio>45) addFlag('warn','漢字比率が高め（'+kanjiRatio+'%）。硬い印象になりがちです');
-    if(avgSent<=60 && kanjiRatio<=38 && longSents===0) addFlag('ok','文長・漢字比率ともに読みやすい範囲です');
-  }
-
-  // estimates
+  // estimates (軽い分だけ即時。bytesは重パスで)
   const secs=Math.round(noSpace/400*60);
   $('readTime').textContent=Math.floor(secs/60)+':'+String(secs%60).padStart(2,'0');
   $('genko').textContent=(Math.ceil(total/400)).toLocaleString()+'枚';
-  $('bytes').textContent=(new TextEncoder().encode(t).length).toLocaleString();
-
-  // mora (lyric mode)
-  let moraPerLine=[];
-  if(mode==='lyric'){
-    moraPerLine=lineArr.map(countMora);
-    const nonEmpty=moraPerLine.filter((m,i)=>lineArr[i].trim()!=='');
-    const moraTotal=moraPerLine.reduce((a,b)=>a+b,0);
-    $('moraTotal').textContent=moraTotal.toLocaleString();
-    $('moraAvg').textContent= nonEmpty.length? (moraTotal/nonEmpty.length).toFixed(1):'0';
-    $('moraMinMax').textContent= nonEmpty.length? Math.max(...nonEmpty)+' / '+Math.min(...nonEmpty):'0 / 0';
-  }
-
-  // SNS
-  if(mode==='tw'||mode==='yt'){
-    const urls=t.match(/https?:\/\/[^\s]+/g)||[];
-    const tags=t.match(/[#＃][^\s#＃]+/g)||[];
-    const mentions=t.match(/[@＠][A-Za-z0-9_]+/g)||[];
-    let emoji=0;
-    if(segGr){for(const s of segGr.segment(t)){if(/\p{Extended_Pictographic}/u.test(s.segment))emoji++;}}
-    // X effective: each char width 1 (half) or 2 (full); urls fixed 23
-    let stripped=t;
-    urls.forEach(u=>stripped=stripped.replace(u,''));
-    let xw=0;
-    for(const c of [...stripped]){
-      xw += /[\u0000-\u10FF\u2000-\u200F\u2010-\u201F\u2032-\u2037]/.test(c)?1:2;
-    }
-    xw += urls.length*23;
-    $('xCount').textContent=Math.ceil(xw/2).toLocaleString();
-    $('tagCount').textContent=tags.length;
-    $('mentionCount').textContent=mentions.length;
-    $('urlCount').textContent=urls.length;
-    $('emojiCount').textContent=emoji;
-  }
 
   // target
   const tgt=parseInt($('targetInput').value)||0;
@@ -633,11 +616,11 @@ function analyze(save=true){
     const pe=$('meterPct');pe.textContent=Math.round(displayCount/tgt*100)+'%';pe.classList.toggle('over',over);
   } else tb.classList.remove('on');
 
-  // status limit
+  // status limit (twの実効文字数は重パス値を使用。未計算時は表示保留)
   const lim=MODES[mode].limit;
   const sl=$('stLimit');
   if(lim>0){
-    const eff= mode==='tw'? parseInt($('xCount').textContent.replace(/,/g,''))||displayCount : displayCount;
+    const eff=(mode==='tw') ? (cache.xEff>=0?cache.xEff:displayCount) : displayCount;
     const rem=lim-eff;
     sl.innerHTML='LIMIT '+(rem>=0?'残り <b style="color:var(--good)">'+rem+'</b>':'<b style="color:var(--ember)">'+(-rem)+' 超過</b>')+' / '+lim;
   } else sl.textContent='';
@@ -651,128 +634,270 @@ function analyze(save=true){
     dv.className=d>0?'up':d<0?'down':'';
     $('deltaTime').textContent=lastSnapshot.time;
   } else $('deltaLine').style.display='none';
-
-  drawGutter(lineArr,moraPerLine);
-  drawWhitespace();
-
-  if(save) persist();
 }
 
-// renders whitespace glyphs in a layer perfectly aligned under the textarea text
-function drawWhitespace(){
-  const on=$('showWS').checked;
-  wsLayer.classList.toggle('on',on);
-  if(!on){wsLayer.innerHTML='';return;}
-  // FIX: keep wrapping identical to the textarea (exclude its scrollbar width)
-  wsLayer.style.width=ed.clientWidth+'px';
+// ---- mora counting (kana-based; ignores non-kana) ----
+const SMALL_YOON = 'ゃゅょャュョ';
+const SMALL_VOWEL = 'ぁぃぅぇぉァィゥェォ';
+function countMora(line){
+  let m=0;
+  const mergeVowel = !$('moraSplitVowel').checked;
+  for(let i=0;i<line.length;i++){
+    const cp=line.charCodeAt(i);
+    const c=line[i];
+    const isH = cp>=0x3041&&cp<=0x3096;
+    const isK = (cp>=0x30A1&&cp<=0x30FA)||(cp>=0xFF66&&cp<=0xFF9F);
+    const isLong = c==='ー'||c==='—'||c==='〜'||c==='～';
+    if(isH||isK){
+      if(SMALL_YOON.indexOf(c)>=0) continue;
+      if(SMALL_VOWEL.indexOf(c)>=0 && mergeVowel) continue;
+      m++;
+    } else if(isLong){ m++; }
+  }
+  return m;
+}
+
+// ---- HEAVY PASS: 入力停止後に実行 ----
+let heavyTimer=0;
+function scheduleHeavy(){
+  clearTimeout(heavyTimer);
+  const n=ed.value.length;
+  // 文量に応じて待機時間を伸ばす(小さいほど即応、大きいほど停止を待つ)
+  const d = n<4000?150 : n<20000?350 : n<60000?700 : 1200;
+  heavyTimer=setTimeout(()=>{if(!composing)heavyPass();},d);
+}
+function heavyPass(){
   const t=ed.value;
-  let html='';
-  for(const c of t){
-    if(c===' '){
-      // keep a real half-width space (preserves width) with a centered dot overlaid
-      html+='<span class="wsx wsx-half"> <i>·</i></span>';
-    }else if(c==='\u3000'){
-      html+='<span class="wsx wsx-full">\u3000<i>□</i></span>';
-    }else if(c==='\t'){
-      html+='<span class="wsx wsx-tab">\t<i>→</i></span>';
-    }else if(c==='\n'){
-      html+='<span class="wsx wsx-nl"><i>↵</i></span>\n';
+  const lineArr=t===''?['']:t.split('\n');
+
+  // words / paras / sentences
+  let wc=0;
+  if(t.trim()!==''){
+    if(segWord && t.length<=60000){
+      for(const s of segWord.segment(t)) if(s.isWordLike) wc++;
     }else{
-      html+=escapeHtml(c);
+      const m=t.trim().match(/\S+/g);wc=m?m.length:0;
     }
   }
-  html+='\u200b';
-  wsLayer.innerHTML=html;
-  wsLayer.scrollTop=ed.scrollTop;
+  $('words').textContent=wc.toLocaleString();
+  const paraN=t.trim()===''?0:t.trim().split(/\n\s*\n/).filter(p=>p.trim()).length;
+  $('paras').textContent=paraN.toLocaleString();
+  const sentArr=t.match(/[^。．.!?！？\n]+[。．.!?！？]+/g)||[];
+  const sentN=(t.match(/[。．.!?！？]+/g)||[]).length;
+  $('sentences').textContent=sentN.toLocaleString();
+
+  // readability (文字種カウントはlightのcacheを利用)
+  const cjkBody=cache.cjk+cache.alnum;
+  const avgSent= sentN>0 ? Math.round(cjkBody/sentN) : 0;
+  const kanjiRatio= cjkBody>0 ? Math.round(cache.kanji/cjkBody*100) : 0;
+  $('avgSent').textContent=avgSent;
+  const krEl=$('kanjiRatio'); krEl.textContent=kanjiRatio+'%';
+  krEl.className='v'+(kanjiRatio>45?' badv':kanjiRatio>38?' warnv':'');
+  const flags=$('readFlags'); flags.innerHTML='';
+  const addFlag=(cls,txt)=>{const d=document.createElement('div');d.className='flag '+cls;d.textContent=txt;flags.appendChild(d);};
+  if(t.trim()!==''){
+    let longSents=0;
+    for(const s of sentArr) if(countCodePoints(s)>80) longSents++;
+    if(avgSent>60) addFlag('warn','平均文長が長め（'+avgSent+'字）。一文を分割すると読みやすくなります');
+    if(longSents>0) addFlag('warn','80字超の長文が '+longSents+' 箇所');
+    if(kanjiRatio>45) addFlag('warn','漢字比率が高め（'+kanjiRatio+'%）。硬い印象になりがちです');
+    if(avgSent<=60 && kanjiRatio<=38 && longSents===0) addFlag('ok','文長・漢字比率ともに読みやすい範囲です');
+  }
+
+  // bytes
+  $('bytes').textContent=(new TextEncoder().encode(t).length).toLocaleString();
+
+  // mora (lyric mode)
+  if(mode==='lyric'){
+    const moras=lineArr.map(countMora);
+    layout.moras=moras;
+    let moraTotal=0,nonEmpty=0,mx=0,mn=Infinity;
+    for(let i=0;i<lineArr.length;i++){
+      moraTotal+=moras[i];
+      if(lineArr[i].trim()!==''){nonEmpty++;if(moras[i]>mx)mx=moras[i];if(moras[i]<mn)mn=moras[i];}
+    }
+    $('moraTotal').textContent=moraTotal.toLocaleString();
+    $('moraAvg').textContent= nonEmpty? (moraTotal/nonEmpty).toFixed(1):'0';
+    $('moraMinMax').textContent= nonEmpty? mx+' / '+mn:'0 / 0';
+  } else layout.moras=null;
+
+  // SNS
+  if(mode==='tw'||mode==='yt'){
+    const urls=t.match(/https?:\/\/[^\s]+/g)||[];
+    const tags=t.match(/[#＃][^\s#＃]+/g)||[];
+    const mentions=t.match(/[@＠][A-Za-z0-9_]+/g)||[];
+    // 絵文字: ZWJシーケンスを1つとして概算(全文grapheme分割より遥かに軽い)
+    const emojiM=t.match(/\p{Extended_Pictographic}(?:\uFE0F)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F)?)*/gu);
+    const emoji=emojiM?emojiM.length:0;
+    let stripped=t;
+    urls.forEach(u=>{stripped=stripped.replace(u,'');});
+    let xw=0;
+    for(let i=0;i<stripped.length;i++){
+      let cp=stripped.charCodeAt(i);
+      if(cp>=0xD800&&cp<=0xDBFF&&i+1<stripped.length){cp=stripped.codePointAt(i);i++;}
+      xw += ((cp<=0x10FF)||(cp>=0x2000&&cp<=0x200F)||(cp>=0x2010&&cp<=0x201F)||(cp>=0x2032&&cp<=0x2037))?1:2;
+    }
+    xw += urls.length*23;
+    cache.xEff=Math.ceil(xw/2);
+    $('xCount').textContent=cache.xEff.toLocaleString();
+    $('tagCount').textContent=tags.length;
+    $('mentionCount').textContent=mentions.length;
+    $('urlCount').textContent=urls.length;
+    $('emojiCount').textContent=emoji;
+    if(mode==='tw')lightPass(); // LIMIT表示をxEffで更新
+  } else cache.xEff=-1;
+
+  // layout measurement + virtualized render
+  ensureLayout(t,lineArr);
+  renderViewport(true);
+
+  persistSchedule();
 }
 
-function drawGutter(lineArr,moraPerLine){
-  const lines=lineArr.length?lineArr:[''];
-
-  // ---- left gutter: numbers placed at each line's measured position ----
-  const lineEm = parseFloat(getComputedStyle(ed).lineHeight);
-  const padB = parseFloat(getComputedStyle(ed).paddingBottom);
-  const {tops,heights} = measureLines(lines, lineEm);
-  // tops[] already include the mirror's top padding = textarea's top padding
-
-  const inner=document.createElement('div');
-  inner.style.cssText='position:relative;height:'+
-    (tops[tops.length-1]+heights[heights.length-1]+padB)+'px;';
-  lines.forEach((ln,i)=>{
-    const div=document.createElement('div');
-    div.className='gl'+([...ln].length>40?' long':'');
-    div.style.top=tops[i]+'px';
-    div.style.lineHeight=lineEm+'px';
-    div.textContent=(i+1);
-    inner.appendChild(div);
-  });
-  gutter.innerHTML='';
-  gutter.appendChild(inner);
-  gutter.scrollTop=ed.scrollTop;
-
-  // ---- right overlay: mora badge at the END (last wrapped row) of each line ----
-  moraOverlay.innerHTML='';
-  if(!$('showGutter').checked || mode!=='lyric') return;
-  lines.forEach((ln,i)=>{
-    if(ln.trim()==='')return;
-    const m=moraPerLine[i]||0;
-    const badge=document.createElement('div');
-    badge.className='mb'+(m>=12?' long':'');
-    badge.textContent='♪ '+m;
-    badge.style.top=(tops[i]+heights[i]-lineEm/2-ed.scrollTop)+'px';
-    moraOverlay.appendChild(badge);
-  });
-}
-
-// measure each logical line's exact position in ONE continuous mirror flow.
-// getBoundingClientRect() returns subpixel floats, so rounding errors can no
-// longer accumulate line after line (the cause of the residual drift).
-function measureLines(lines,lineEm){
-  mirror.style.width=ed.clientWidth+'px';
+// ---- 行位置測定: テキスト/幅/フォントが変わった時だけ ----
+function ensureLayout(t,lineArr){
+  const w=ed.clientWidth;
+  if(layout.valid && layout.text===t && layout.width===w)return;
+  const cs=getComputedStyle(ed);
+  const lineEm=parseFloat(cs.lineHeight);
+  const padL=parseFloat(cs.paddingLeft), padR=parseFloat(cs.paddingRight);
+  mirror.style.width=w+'px';
+  // 1回のinnerHTML書き込み → 1回のレイアウト → rect一括読み(write/read交互を排除)
   let html='';
-  lines.forEach(ln=>{
-    const safe = ln==='' ? '\u200b' : escapeHtml(ln);
-    html+='<div class="ml">'+safe+'</div>';
-  });
+  for(let i=0;i<lineArr.length;i++){
+    html+='<div class="ml">'+(lineArr[i]===''?'\u200b':escapeHtml(lineArr[i]))+'</div>';
+  }
   mirror.innerHTML=html;
-  const blocks=mirror.querySelectorAll('.ml');
-  blocks.forEach(b=>{
-    b.style.cssText='white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;'+
-      'tab-size:8;-moz-tab-size:8;'+
-      'font-family:var(--mono);font-size:14px;line-height:'+lineEm+'px;letter-spacing:.01em;';
-  });
   const base=mirror.getBoundingClientRect();
-  const tops=[],heights=[];
-  blocks.forEach(b=>{
-    const r=b.getBoundingClientRect();
-    tops.push(r.top-base.top);
-    heights.push(Math.max(r.height,lineEm));
-  });
-  return {tops,heights};
+  const blocks=mirror.children;
+  const n=blocks.length;
+  const tops=new Array(n),heights=new Array(n),lens=new Array(n);
+  for(let i=0;i<n;i++){
+    const r=blocks[i].getBoundingClientRect();
+    tops[i]=r.top-base.top;
+    heights[i]=Math.max(r.height,lineEm);
+    lens[i]=lineArr[i].length;
+  }
+  mirror.innerHTML='';   // 測定が済んだら即破棄(数千ノードを保持しない)
+  layout={valid:true,text:t,lines:lineArr,width:w,lineEm,padL,padR,tops,heights,lens,moras:layout.moras};
+  renderedRange=[-1,-1];
+}
+
+// ---- 仮想描画: 可視範囲±300pxの行だけDOM化。スクロールはtransformのみ ----
+function idxAtY(y){
+  const tops=layout.tops;
+  let lo=0,hi=tops.length-1,ans=0;
+  while(lo<=hi){
+    const mid=(lo+hi)>>1;
+    if(tops[mid]<=y){ans=mid;lo=mid+1;}else hi=mid-1;
+  }
+  return ans;
+}
+function renderViewport(force){
+  if(!layout.valid)return;
+  const st=ed.scrollTop;
+  const tr='translate3d(0,'+(-st)+'px,0)';
+  gutInner.style.transform=tr;
+  ovInner.style.transform=tr;
+  wsInner.style.transform=tr;
+
+  const buf=300;
+  const n=layout.tops.length;
+  const a=idxAtY(st-buf);
+  let b=idxAtY(st+ed.clientHeight+buf);
+  if(b<n-1)b++;
+  if(!force && a>=renderedRange[0] && b<=renderedRange[1])return;
+  const ra=Math.max(0,a-8), rb=Math.min(n-1,b+8);
+
+  buildGutter(ra,rb);
+  buildBadges(ra,rb);
+  buildWS(ra,rb);
+  renderedRange=[ra,rb];
+}
+function buildGutter(ra,rb){
+  const {tops,lens,lineEm}=layout;
+  let html='';
+  for(let i=ra;i<=rb;i++){
+    html+='<div class="gl'+(lens[i]>40?' long':'')+'" style="top:'+tops[i]+'px;line-height:'+lineEm+'px">'+(i+1)+'</div>';
+  }
+  gutInner.innerHTML=html;
+}
+function buildBadges(ra,rb){
+  if(mode!=='lyric' || !$('showGutter').checked || !layout.moras){ovInner.innerHTML='';return;}
+  const {tops,heights,lineEm,moras,lines}=layout;
+  let html='';
+  for(let i=ra;i<=rb;i++){
+    if(lines[i]===undefined || lines[i].trim()==='')continue;
+    const m=moras[i]||0;
+    html+='<div class="mb'+(m>=12?' long':'')+'" style="top:'+(tops[i]+heights[i]-lineEm/2)+'px">♪ '+m+'</div>';
+  }
+  ovInner.innerHTML=html;
+}
+function buildWS(ra,rb){
+  const on=$('showWS').checked;
+  wsLayer.classList.toggle('on',on);
+  if(!on){wsInner.innerHTML='';return;}
+  const {tops,padL,padR,width,lines}=layout;
+  const cw=(width-padL-padR);
+  const last=lines.length-1;
+  let html='';
+  for(let i=ra;i<=rb;i++){
+    html+='<div class="wsline" style="top:'+tops[i]+'px;left:'+padL+'px;width:'+cw+'px">'+wsLineHtml(lines[i],i===last)+'</div>';
+  }
+  wsInner.innerHTML=html;
+}
+function wsLineHtml(ln,isLast){
+  let h='';
+  for(let i=0;i<ln.length;i++){
+    const c=ln[i];
+    if(c===' '){
+      h+='<span class="wsx wsx-half"> <i>·</i></span>';
+    }else if(c==='\u3000'){
+      h+='<span class="wsx wsx-full">\u3000<i>□</i></span>';
+    }else if(c==='\t'){
+      h+='<span class="wsx wsx-tab">\t<i>→</i></span>';
+    }else{
+      h+=escapeHtml(c);
+    }
+  }
+  if(!isLast)h+='<span class="wsx wsx-nl"><i>↵</i></span>';
+  return h||'\u200b';
 }
 function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
-function syncScroll(){
-  gutter.scrollTop=ed.scrollTop;
-  wsLayer.scrollTop=ed.scrollTop;
-  // overlay badges are positioned in document space minus scrollTop; redraw positions
-  const lines=ed.value===''?['']:ed.value.split('\n');
-  if(mode==='lyric' && $('showGutter').checked){
-    drawGutter(lines, lines.map(countMora));
-  }
+// ---- scroll: rAF間引き + passive。測定・再構築なし ----
+let scrollQueued=false;
+ed.addEventListener('scroll',()=>{
+  if(scrollQueued)return;
+  scrollQueued=true;
+  requestAnimationFrame(()=>{scrollQueued=false;renderViewport(false);});
+},{passive:true});
+
+// ---- resize: デバウンスしてレイアウト無効化 ----
+let resizeTimer=0;
+window.addEventListener('resize',()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer=setTimeout(()=>{layout.valid=false;heavyPass();},200);
+});
+
+// ---- 即時フル計算(モード切替・ファイル読込など明示操作用) ----
+function analyzeNow(){
+  clearTimeout(heavyTimer);
+  lightPass();
+  heavyPass();
 }
-ed.addEventListener('scroll',syncScroll);
-window.addEventListener('resize',()=>analyze(false));
 
 function cursorInfo(){
   const pos=ed.selectionStart;
-  const before=ed.value.slice(0,pos);
-  const line=before.split('\n').length;
-  const col=pos-before.lastIndexOf('\n');
+  const v=ed.value;
+  // 配列を作らず行番号を数える
+  let line=1;
+  for(let i=0;i<pos;i++)if(v.charCodeAt(i)===10)line++;
+  const col=pos-v.lastIndexOf('\n',pos-1);
   $('stCursor').textContent=line+':'+col;
   const sel=ed.selectionEnd-ed.selectionStart;
   const ss=$('stSel');
-  if(sel>0){ss.style.display='';$('stSelN').textContent=[...ed.value.slice(ed.selectionStart,ed.selectionEnd)].length;}
+  if(sel>0){ss.style.display='';$('stSelN').textContent=countCodePoints(v.slice(ed.selectionStart,ed.selectionEnd));}
   else ss.style.display='none';
 }
 
@@ -794,7 +919,7 @@ function loadPresets(){
     el.innerHTML=v.toLocaleString()+(p.includes(v)?' <span class="x">×</span>':'');
     el.querySelector('.x')?.addEventListener('click',e=>{e.stopPropagation();
       p=p.filter(x=>x!==v);localStorage.setItem(LS.presets,JSON.stringify(p));loadPresets();});
-    el.addEventListener('click',()=>{$('targetInput').value=v;analyze();});
+    el.addEventListener('click',()=>{$('targetInput').value=v;lightPass();persistSchedule();});
     row.appendChild(el);
   });
 }
@@ -804,9 +929,9 @@ $('targetInput').addEventListener('change',()=>{
     if(!p.includes(v)){p.push(v);localStorage.setItem(LS.presets,JSON.stringify(p));loadPresets();}}
 });
 
-// ---- persistence ----
+// ---- persistence (1秒デバウンス) ----
 let saveTimer=null;
-function persist(){
+function persistSchedule(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(()=>{
     localStorage.setItem(LS.text,ed.value);
@@ -817,7 +942,7 @@ function persist(){
     localStorage.setItem(LS.sv,$('moraSplitVowel').checked?'1':'0');
     localStorage.setItem(LS.ws,$('showWS').checked?'1':'0');
     const sv=$('stSaved');sv.textContent='● SAVED';setTimeout(()=>sv.textContent='',900);
-  },400);
+  },1000);
 }
 function restore(){
   const t=localStorage.getItem(LS.text);if(t!==null)ed.value=t;
@@ -838,13 +963,11 @@ $('themeBtn').addEventListener('click',()=>{
 });
 
 // ---- Tab key: indent / outdent (standard text-editor behavior) ----
-const TAB_STR = '\t'; // real tab char (Windows Notepad behavior)
+const TAB_STR = '\t';
 function replaceRange(start,end,text,selStart,selEnd){
   ed.focus();
   ed.setSelectionRange(start,end);
-  // insertText keeps native undo/redo stack intact
   if(!document.execCommand('insertText',false,text)){
-    // fallback if execCommand unsupported
     ed.value = ed.value.slice(0,start)+text+ed.value.slice(end);
   }
   if(selStart!=null) ed.setSelectionRange(selStart, selEnd!=null?selEnd:selStart);
@@ -854,26 +977,21 @@ ed.addEventListener('keydown',(e)=>{
   e.preventDefault();
   const v=ed.value, s=ed.selectionStart, en=ed.selectionEnd;
   const hasSel = s!==en;
-  // line range covered by selection
   const lineStart = v.lastIndexOf('\n', s-1)+1;
   const multiLine = hasSel && v.slice(s,en).includes('\n');
 
   if(!e.shiftKey && !multiLine){
-    // simple insert at caret
     replaceRange(s,en,TAB_STR, s+TAB_STR.length);
-    analyze();cursorInfo();return;
+    scheduleLight();scheduleHeavy();cursorInfo();return;
   }
 
-  // block indent / outdent over full lines
   let blockEnd = v.indexOf('\n', en);
   if(blockEnd===-1) blockEnd=v.length; else if(en>s && v[en-1]==='\n') blockEnd=en-1;
   const block = v.slice(lineStart, blockEnd);
   const lines = block.split('\n');
-  let newSelStart=s, newSelEnd=en;
+  let firstRemoved=0, totalRemoved=0;
 
   if(e.shiftKey){
-    // outdent: strip up to TAB_STR.length leading spaces (or one tab) per line
-    let firstRemoved=0, totalRemoved=0;
     const out=lines.map((ln,i)=>{
       let rm=0;
       if(ln.startsWith('\t')) rm=1;
@@ -885,46 +1003,55 @@ ed.addEventListener('keydown',(e)=>{
     replaceRange(lineStart, blockEnd, out.join('\n'),
       Math.max(lineStart, s-firstRemoved), en-totalRemoved);
   } else {
-    // indent: prepend TAB_STR to each line
     const out=lines.map(ln=>TAB_STR+ln);
     replaceRange(lineStart, blockEnd, out.join('\n'),
       s+TAB_STR.length, en+TAB_STR.length*lines.length);
   }
-  analyze();cursorInfo();
+  scheduleLight();scheduleHeavy();cursorInfo();
 });
 
 // ---- events ----
-ed.addEventListener('input',()=>{analyze();cursorInfo();});
+// IME変換中は重い計算を完全スキップ(iOSかな入力の引っかかり対策)
+ed.addEventListener('compositionstart',()=>{composing=true;});
+ed.addEventListener('compositionend',()=>{composing=false;scheduleLight();scheduleHeavy();});
+ed.addEventListener('input',()=>{
+  scheduleLight();
+  if(!composing)scheduleHeavy();
+  cursorInfo();
+  persistSchedule();
+});
 ed.addEventListener('keyup',cursorInfo);
 ed.addEventListener('click',cursorInfo);
 ed.addEventListener('select',cursorInfo);
-$('cjkOnly').addEventListener('change',analyze);
-$('showGutter').addEventListener('change',analyze);
-$('moraSplitVowel').addEventListener('change',analyze);
-$('showWS').addEventListener('change',analyze);
-$('targetInput').addEventListener('input',analyze);
+$('cjkOnly').addEventListener('change',()=>{lightPass();persistSchedule();});
+$('showGutter').addEventListener('change',()=>{renderViewport(true);persistSchedule();});
+$('moraSplitVowel').addEventListener('change',analyzeNow);
+$('showWS').addEventListener('change',()=>{
+  if(layout.valid){renderViewport(true);persistSchedule();}
+  else analyzeNow();
+});
+$('targetInput').addEventListener('input',()=>{lightPass();persistSchedule();});
 
 document.querySelectorAll('.tbtn[data-mode]').forEach(b=>{
   b.addEventListener('click',()=>{
     mode=b.dataset.mode;applyModeUI();
     if(MODES[mode].limit>0 && !$('targetInput').value)$('targetInput').value=MODES[mode].limit;
-    analyze();
+    analyzeNow();
   });
 });
 
 $('snapBtn').addEventListener('click',()=>{
-  const useCJK=$('cjkOnly').checked;
-  const cnt= useCJK ? [...ed.value].filter(c=>{const cp=c.codePointAt(0);return (cp>=0x4E00&&cp<=0x9FFF)||(cp>=0x3400&&cp<=0x4DBF)||(cp>=0x3040&&cp<=0x30FF)||(cp>=0xFF66&&cp<=0xFF9F);}).length : [...ed.value].length;
+  lightPass(); // 最新のdisplayCountを確定させてから記録
   const now=new Date();
-  lastSnapshot={count:cnt,time:now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')};
+  lastSnapshot={count:cache.displayCount,time:now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')};
   localStorage.setItem(LS.snap,JSON.stringify(lastSnapshot));
   const b=$('snapBtn');b.textContent='SAVED';setTimeout(()=>b.textContent='SNAPSHOT',1000);
-  analyze();
+  lightPass();
 });
 
 $('clearbtn').addEventListener('click',()=>{
   if(ed.value && !confirm('テキストをクリアしますか？'))return;
-  ed.value='';ed.focus();analyze();cursorInfo();
+  ed.value='';ed.focus();analyzeNow();cursorInfo();
 });
 $('copybtn').addEventListener('click',async()=>{
   try{await navigator.clipboard.writeText(ed.value);
@@ -934,11 +1061,11 @@ $('copybtn').addEventListener('click',async()=>{
 // ---- OPEN: import text file (strips BOM, normalizes newlines to LF) ----
 function loadTextIntoEditor(raw,fname){
   let t=raw;
-  if(t.charCodeAt(0)===0xFEFF)t=t.slice(1);      // strip UTF-8 BOM (from our own SAVE etc.)
-  t=t.replace(/\r\n|\r/g,'\n');                   // normalize CRLF/CR → LF for editing
+  if(t.charCodeAt(0)===0xFEFF)t=t.slice(1);
+  t=t.replace(/\r\n|\r/g,'\n');
   ed.value=t;
   ed.focus();ed.setSelectionRange(0,0);ed.scrollTop=0;
-  analyze();cursorInfo();
+  analyzeNow();cursorInfo();
   const b=$('openbtn');b.textContent='OPENED';setTimeout(()=>b.textContent='OPEN',1200);
 }
 function openTextFile(file){
@@ -953,7 +1080,7 @@ function openTextFile(file){
 $('openbtn').addEventListener('click',()=>$('fileInput').click());
 $('fileInput').addEventListener('change',e=>{
   openTextFile(e.target.files[0]);
-  e.target.value='';                              // allow re-opening the same file
+  e.target.value='';
 });
 // drag & drop onto the editor area
 const edmainEl=document.getElementById('edmain');
@@ -974,18 +1101,15 @@ function buildFileName(){
   const d=new Date();
   const p=n=>String(n).padStart(2,'0');
   const stamp=`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
-  // derive a short title from first line of text
   const firstLine=(ed.value.split('\n').find(l=>l.trim())||'').trim();
   let title=[...firstLine].slice(0,16).join('')
-    .replace(/[\\/:*?"<>|\u0000-\u001f]/g,'')  // strip filename-illegal chars
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g,'')
     .replace(/\s+/g,'_').trim();
   const modeName=(MODES[mode]&&MODES[mode].name)?MODES[mode].name:'';
   return `TALLY_${stamp}${modeName?'_'+modeName:''}${title?'_'+title:''}.txt`;
 }
 $('savebtn').addEventListener('click',()=>{
-  // normalize all newlines to CRLF for Windows Notepad compatibility
   const body=ed.value.replace(/\r\n|\r|\n/g,'\r\n');
-  // UTF-8 BOM so Windows reliably detects encoding; Mac ignores it
   const BOM='\uFEFF';
   const blob=new Blob([BOM+body],{type:'text/plain;charset=utf-8'});
   const url=URL.createObjectURL(blob);
@@ -1004,7 +1128,6 @@ function loadSlots(){
 }
 function saveSlots(){localStorage.setItem(LS_SLOTS,JSON.stringify(slots));}
 function slotPreview(text){
-  // first 10 chars, newlines→space, trimmed
   const oneLine=text.replace(/\s+/g,' ').trim();
   const head=[...oneLine].slice(0,10).join('');
   return head + ([...oneLine].length>10?'…':'');
@@ -1026,12 +1149,10 @@ function renderSlots(){
 }
 function handleSlot(i){
   if(slots[i]===null){
-    // stow: move current text into slot, clear editor
-    if(ed.value===''){return;} // nothing to stow
+    if(ed.value===''){return;}
     slots[i]=ed.value;
     ed.value='';
   }else{
-    // restore: paste at cursor, empty the slot
     const text=slots[i];
     const a=ed.selectionStart,b=ed.selectionEnd;
     const v=ed.value;
@@ -1041,7 +1162,7 @@ function handleSlot(i){
     slots[i]=null;
   }
   saveSlots();renderSlots();
-  ed.focus();analyze();cursorInfo();
+  ed.focus();analyzeNow();cursorInfo();
 }
 document.querySelectorAll('.slot').forEach(btn=>{
   btn.addEventListener('click',()=>handleSlot(+btn.dataset.slot));
@@ -1052,11 +1173,11 @@ restore();
 loadSlots();renderSlots();
 applyModeUI();
 loadPresets();
-analyze(false);
+analyzeNow();
 cursorInfo();
 ed.focus();
 // re-measure once webfonts finish loading (metrics differ before IBM Plex Mono is ready)
-if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>analyze(false));
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{layout.valid=false;heavyPass();});
 </script>
 </body>
 </html>
