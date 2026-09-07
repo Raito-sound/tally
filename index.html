@@ -369,60 +369,61 @@ body::before{
 <div id="appbar">
 <a class="studio-brand" href="https://raito.studio/" aria-label="Raito Studio home"><span class="studio-mark" aria-hidden="true"></span><span class="studio-wordmark"><strong>Raito</strong> Studio Tools</span></a><nav class="studio-nav" aria-label="Raito Studio apps"><a href="https://tally.raito.studio/" aria-current="page">TALLY</a><a href="https://carve.raito.studio/">CARVE</a><a href="https://keys.raito.studio/">KEYS</a></nav>
   <div class="spacer"></div>
-  <span id="hint">原稿・歌詞・概要欄テキストを貼り付け</span>
-  <button class="btn" id="openbtn">OPEN</button>
+  <span id="hint"><span data-i18n="原稿・歌詞・概要欄テキストを貼り付け">原稿・歌詞・概要欄テキストを貼り付け</span></span>
+  <button class="btn" id="openbtn"><span data-i18n="OPEN">OPEN</span></button>
   <input type="file" id="fileInput" accept=".txt,.md,.lrc,.srt,.csv,.log,text/plain" style="display:none">
-  <button class="btn" id="snapBtn">SNAPSHOT</button>
-  <button class="btn" id="savebtn">SAVE .txt</button>
-  <button class="btn" id="copybtn">COPY</button>
-  <button class="btn" id="clearbtn">CLEAR</button>
-  <button class="btn" id="themeBtn" title="ライト/ダーク切替">◐</button>
+  <button class="btn" id="snapBtn"><span data-i18n="SNAPSHOT">SNAPSHOT</span></button>
+  <button class="btn" id="savebtn"><span data-i18n="SAVE .txt">SAVE .txt</span></button>
+  <button class="btn" id="copybtn"><span data-i18n="COPY">COPY</span></button>
+  <button class="btn" id="clearbtn"><span data-i18n="CLEAR">CLEAR</span></button>
+  <select class="btn" id="languageSelect" aria-label="Language / 言語"><option value="auto">Auto / 自動</option><option value="ja">日本語</option><option value="en">English</option></select>
+  <button class="btn" id="themeBtn" title="ライト/ダーク切替" data-i18n-title="ライト/ダーク切替">◐</button>
 </div>
 
 <div id="wrap">
   <div id="editorpane">
     <div id="edtoolbar">
-      <button class="tbtn on" data-mode="jp">日本語原稿</button>
-      <button class="tbtn" data-mode="lyric">作詞</button>
-      <button class="tbtn" data-mode="tw">SNS/X</button>
-      <button class="tbtn" data-mode="yt">YT概要欄</button>
-      <button class="tbtn" data-mode="raw">汎用</button>
+      <button class="tbtn on" data-mode="jp"><span data-i18n="日本語原稿">日本語原稿</span></button>
+      <button class="tbtn" data-mode="lyric"><span data-i18n="作詞">作詞</span></button>
+      <button class="tbtn" data-mode="tw"><span data-i18n="SNS/X">SNS/X</span></button>
+      <button class="tbtn" data-mode="yt"><span data-i18n="YT概要欄">YT概要欄</span></button>
+      <button class="tbtn" data-mode="raw"><span data-i18n="汎用">汎用</span></button>
       <span class="tsep"></span>
-      <label><input type="checkbox" id="cjkOnly"> CJKのみ計数</label>
-      <label><input type="checkbox" id="showGutter" checked> 行末モーラ</label>
-      <label title="ファ・ねぇ等の小書き母音を独立1拍として数える"><input type="checkbox" id="moraSplitVowel"> 小書ァを1拍</label>
-      <label title="半角␣・全角□・改行↵ を可視化"><input type="checkbox" id="showWS"> 空白可視化</label>
+      <label><input type="checkbox" id="cjkOnly"> <span data-i18n="CJKのみ計数">CJKのみ計数</span></label>
+      <label><input type="checkbox" id="showGutter" checked> <span data-i18n="行末モーラ">行末モーラ</span></label>
+      <label title="ファ・ねぇ等の小書き母音を独立1拍として数える" data-i18n-title="ファ・ねぇ等の小書き母音を独立1拍として数える"><input type="checkbox" id="moraSplitVowel"> <span data-i18n="小書ァを1拍">小書ァを1拍</span></label>
+      <label title="半角␣・全角□・改行↵ を可視化" data-i18n-title="半角␣・全角□・改行↵ を可視化"><input type="checkbox" id="showWS"> <span data-i18n="空白可視化">空白可視化</span></label>
       <span class="tsep"></span>
-      <label>目標 <input type="number" id="targetInput" min="0" step="50" placeholder="0"></label>
+      <label><span data-i18n="目標">目標</span> <input type="number" id="targetInput" min="0" step="50" placeholder="0"></label>
     </div>
     <div id="edbody">
       <div id="gutter"><div class="ginner" id="gutInner"></div></div>
       <div id="edmain">
         <div id="mirror"></div>
         <div id="wsLayer"><div class="wsinner" id="wsInner"></div></div>
-        <textarea id="editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="ここにテキストを入力 / 貼り付け…"></textarea>
+        <textarea id="editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="ここにテキストを入力 / 貼り付け…" data-i18n-placeholder="ここにテキストを入力 / 貼り付け…"></textarea>
         <div id="moraOverlay"><div class="oinner" id="ovInner"></div></div>
       </div>
     </div>
     <div id="slotbar">
-      <span class="slabel">一時保存</span>
-      <button class="slot" data-slot="0"><span class="si">1</span><span class="sp">空き</span></button>
-      <button class="slot" data-slot="1"><span class="si">2</span><span class="sp">空き</span></button>
-      <button class="slot" data-slot="2"><span class="si">3</span><span class="sp">空き</span></button>
-      <span class="shint">空き=本文を退避 / 保持=カーソル位置へ差し戻し</span>
+      <span class="slabel"><span data-i18n="一時保存">一時保存</span></span>
+      <button class="slot" data-slot="0"><span class="si">1</span><span class="sp"><span data-i18n="空き">空き</span></span></button>
+      <button class="slot" data-slot="1"><span class="si">2</span><span class="sp"><span data-i18n="空き">空き</span></span></button>
+      <button class="slot" data-slot="2"><span class="si">3</span><span class="sp"><span data-i18n="空き">空き</span></span></button>
+      <span class="shint"><span data-i18n="空き=本文を退避 / 保持=カーソル位置へ差し戻し">空き=本文を退避 / 保持=カーソル位置へ差し戻し</span></span>
     </div>
   </div>
 
   <div id="stats">
     <div class="bighero">
-      <div class="lbl">Characters</div>
-      <div class="num"><span id="charCount">0</span><small>字</small></div>
-      <div class="sub2">空白除く <b id="charNoSpace">0</b> ／ 改行除く <b id="charNoNL">0</b></div>
-      <div class="delta" id="deltaLine" style="display:none">前回比 <b id="deltaVal">0</b> <span id="deltaTime" style="opacity:.6"></span></div>
+      <div class="lbl"><span data-i18n="Characters">Characters</span></div>
+      <div class="num"><span id="charCount">0</span><small><span data-i18n="字">字</span></small></div>
+      <div class="sub2"><span data-i18n="空白除く">空白除く</span> <b id="charNoSpace">0</b> <span data-i18n="／ 改行除く">／ 改行除く</span> <b id="charNoNL">0</b></div>
+      <div class="delta" id="deltaLine" style="display:none"><span data-i18n="前回比">前回比</span> <b id="deltaVal">0</b> <span id="deltaTime" style="opacity:.6"></span></div>
     </div>
 
     <div class="section" id="targetbar">
-      <h3>Target</h3>
+      <h3><span data-i18n="Target">Target</span></h3>
       <div class="meter" id="meter"><div class="fill" id="meterFill"></div></div>
       <div class="meterlbl">
         <span id="meterText">0 / 0</span>
@@ -432,76 +433,77 @@ body::before{
     </div>
 
     <div class="section" id="moraSec" style="display:none">
-      <h3>Mora <span class="tag">作詞モード</span></h3>
-      <div class="row"><span class="k">総モーラ数 <small>拍</small></span><span class="v" id="moraTotal" style="color:var(--amber)">0</span></div>
-      <div class="row"><span class="k">行あたり平均</span><span class="v" id="moraAvg">0</span></div>
-      <div class="row"><span class="k">最長行 / 最短行</span><span class="v" id="moraMinMax">0 / 0</span></div>
+      <h3><span data-i18n="Mora">Mora</span> <span class="tag"><span data-i18n="作詞モード">作詞モード</span></span></h3>
+      <div class="row"><span class="k"><span data-i18n="総モーラ数">総モーラ数</span> <small><span data-i18n="拍">拍</span></small></span><span class="v" id="moraTotal" style="color:var(--amber)">0</span></div>
+      <div class="row"><span class="k"><span data-i18n="行あたり平均">行あたり平均</span></span><span class="v" id="moraAvg">0</span></div>
+      <div class="row"><span class="k"><span data-i18n="最長行 / 最短行">最長行 / 最短行</span></span><span class="v" id="moraMinMax">0 / 0</span></div>
       <div style="font-size:10px;color:var(--dim);margin-top:8px;line-height:1.5">
-        拗音(きゃ)は1拍、促音(っ)・撥音(ん)・長音(ー)は各1拍。漢字は読みが確定しないため計数対象外 —— <b style="color:var(--amber)">歌詞はひらがな表記</b>を前提に、行末の <b style="color:var(--amber)">♪n</b> で拍数を表示します。
+        <span data-i18n="拗音(きゃ)は1拍、促音(っ)・撥音(ん)・長音(ー)は各1拍。漢字は読みが確定しないため計数対象外 ——">拗音(きゃ)は1拍、促音(っ)・撥音(ん)・長音(ー)は各1拍。漢字は読みが確定しないため計数対象外 ——</span> <b style="color:var(--amber)"><span data-i18n="歌詞はひらがな表記">歌詞はひらがな表記</span></b><span data-i18n="を前提に、行末の">を前提に、行末の</span> <b style="color:var(--amber)">♪n</b> <span data-i18n="で拍数を表示します。">で拍数を表示します。</span>
       </div>
     </div>
 
     <div class="section">
-      <h3>Counts</h3>
-      <div class="row"><span class="k">単語数</span><span class="v" id="words">0</span></div>
-      <div class="row"><span class="k">行数</span><span class="v" id="lines">0</span></div>
-      <div class="row"><span class="k">段落数</span><span class="v" id="paras">0</span></div>
-      <div class="row"><span class="k">文数</span><span class="v" id="sentences">0</span></div>
+      <h3><span data-i18n="Counts">Counts</span></h3>
+      <div class="row"><span class="k"><span data-i18n="単語数">単語数</span></span><span class="v" id="words">0</span></div>
+      <div class="row"><span class="k"><span data-i18n="行数">行数</span></span><span class="v" id="lines">0</span></div>
+      <div class="row"><span class="k"><span data-i18n="段落数">段落数</span></span><span class="v" id="paras">0</span></div>
+      <div class="row"><span class="k"><span data-i18n="文数">文数</span></span><span class="v" id="sentences">0</span></div>
     </div>
 
     <div class="section">
-      <h3>Composition</h3>
+      <h3><span data-i18n="Composition">Composition</span></h3>
       <div class="compbar" id="compBar">
         <i class="k" id="cbK"></i><i class="h" id="cbH"></i><i class="t" id="cbT"></i><i class="a" id="cbA"></i><i class="o" id="cbO"></i>
       </div>
       <div class="leg">
-        <span><i style="background:var(--ember)"></i>漢字</span>
-        <span><i style="background:var(--amber)"></i>ひらがな</span>
-        <span><i style="background:var(--sel)"></i>カタカナ</span>
-        <span><i style="background:var(--good)"></i>英数字</span>
-        <span><i style="background:var(--line2)"></i>記号</span>
+        <span><i style="background:var(--ember)"></i><span data-i18n="漢字">漢字</span></span>
+        <span><i style="background:var(--amber)"></i><span data-i18n="ひらがな">ひらがな</span></span>
+        <span><i style="background:var(--sel)"></i><span data-i18n="カタカナ">カタカナ</span></span>
+        <span><i style="background:var(--good)"></i><span data-i18n="英数字">英数字</span></span>
+        <span><i style="background:var(--line2)"></i><span data-i18n="記号">記号</span></span>
       </div>
-      <div class="row"><span class="k">漢字</span><span class="v" id="kanji">0</span></div>
-      <div class="row"><span class="k">ひらがな</span><span class="v" id="hira">0</span></div>
-      <div class="row"><span class="k">カタカナ</span><span class="v" id="kata">0</span></div>
-      <div class="row"><span class="k">英数字</span><span class="v" id="alnum">0</span></div>
-      <div class="row"><span class="k">記号・その他</span><span class="v" id="other">0</span></div>
+      <div class="row"><span class="k"><span data-i18n="漢字">漢字</span></span><span class="v" id="kanji">0</span></div>
+      <div class="row"><span class="k"><span data-i18n="ひらがな">ひらがな</span></span><span class="v" id="hira">0</span></div>
+      <div class="row"><span class="k"><span data-i18n="カタカナ">カタカナ</span></span><span class="v" id="kata">0</span></div>
+      <div class="row"><span class="k"><span data-i18n="英数字">英数字</span></span><span class="v" id="alnum">0</span></div>
+      <div class="row"><span class="k"><span data-i18n="記号・その他">記号・その他</span></span><span class="v" id="other">0</span></div>
     </div>
 
     <div class="section" id="readSec">
-      <h3>Readability <span class="tag">可読性</span></h3>
-      <div class="row"><span class="k">平均文長 <small>字/文</small></span><span class="v" id="avgSent">0</span></div>
-      <div class="row"><span class="k">漢字比率</span><span class="v" id="kanjiRatio">0%</span></div>
+      <h3><span data-i18n="Readability">Readability</span> <span class="tag"><span data-i18n="可読性">可読性</span></span></h3>
+      <div class="row"><span class="k"><span data-i18n="平均文長">平均文長</span> <small><span data-i18n="字/文">字/文</span></small></span><span class="v" id="avgSent">0</span></div>
+      <div class="row"><span class="k"><span data-i18n="漢字比率">漢字比率</span></span><span class="v" id="kanjiRatio">0%</span></div>
       <div id="readFlags"></div>
     </div>
 
     <div class="section" id="snsSec" style="display:none">
-      <h3>SNS <span class="tag">X / 概要欄</span></h3>
-      <div class="row"><span class="k">X実効文字数 <small>全角=2,URL=23</small></span><span class="v" id="xCount">0</span></div>
-      <div class="row"><span class="k">ハッシュタグ</span><span class="v" id="tagCount">0</span></div>
-      <div class="row"><span class="k">メンション</span><span class="v" id="mentionCount">0</span></div>
+      <h3><span data-i18n="SNS">SNS</span> <span class="tag"><span data-i18n="X / 概要欄">X / 概要欄</span></span></h3>
+      <div class="row"><span class="k"><span data-i18n="X実効文字数">X実効文字数</span> <small><span data-i18n="全角=2,URL=23">全角=2,URL=23</span></small></span><span class="v" id="xCount">0</span></div>
+      <div class="row"><span class="k"><span data-i18n="ハッシュタグ">ハッシュタグ</span></span><span class="v" id="tagCount">0</span></div>
+      <div class="row"><span class="k"><span data-i18n="メンション">メンション</span></span><span class="v" id="mentionCount">0</span></div>
       <div class="row"><span class="k">URL</span><span class="v" id="urlCount">0</span></div>
-      <div class="row"><span class="k">絵文字</span><span class="v" id="emojiCount">0</span></div>
+      <div class="row"><span class="k"><span data-i18n="絵文字">絵文字</span></span><span class="v" id="emojiCount">0</span></div>
     </div>
 
     <div class="section">
-      <h3>Estimates</h3>
-      <div class="row"><span class="k">音読時間 <small>@400字/分</small></span><span class="v" id="readTime">0:00</span></div>
-      <div class="row"><span class="k">原稿用紙 <small>400字</small></span><span class="v" id="genko">0</span></div>
-      <div class="row"><span class="k">バイト数 <small>UTF-8</small></span><span class="v" id="bytes">0</span></div>
+      <h3><span data-i18n="Estimates">Estimates</span></h3>
+      <div class="row"><span class="k"><span data-i18n="音読時間">音読時間</span> <small><span data-i18n="@400字/分">@400字/分</span></small></span><span class="v" id="readTime">0:00</span></div>
+      <div class="row"><span class="k"><span data-i18n="原稿用紙">原稿用紙</span> <small><span data-i18n="400字">400字</span></small></span><span class="v" id="genko">0</span></div>
+      <div class="row"><span class="k"><span data-i18n="バイト数">バイト数</span> <small>UTF-8</small></span><span class="v" id="bytes">0</span></div>
     </div>
   </div>
 </div>
 
 <div id="statusbar">
-  <span>MODE <b id="stMode">日本語原稿</b></span>
-  <span>CURSOR <b id="stCursor">1:1</b></span>
-  <span class="seldim" id="stSel" style="display:none">SEL <b id="stSelN">0</b></span>
+  <span><span data-i18n="MODE">MODE</span> <b id="stMode"><span data-i18n="日本語原稿">日本語原稿</span></b></span>
+  <span><span data-i18n="CURSOR">CURSOR</span> <b id="stCursor">1:1</b></span>
+  <span class="seldim" id="stSel" style="display:none"><span data-i18n="SEL">SEL</span> <b id="stSelN">0</b></span>
   <span class="spacer"></span>
   <span class="saved" id="stSaved"></span>
   <span id="stLimit"></span>
 </div>
 
+<script src="i18n.js"></script>
 <script>
 'use strict';
 const ed = document.getElementById('editor');
@@ -619,7 +621,7 @@ function lightPass(){
   // estimates (軽い分だけ即時。bytesは重パスで)
   const secs=Math.round(noSpace/400*60);
   $('readTime').textContent=Math.floor(secs/60)+':'+String(secs%60).padStart(2,'0');
-  $('genko').textContent=(Math.ceil(total/400)).toLocaleString()+'枚';
+  $('genko').textContent=(Math.ceil(total/400)).toLocaleString()+tr("枚");
 
   // target
   const tgt=parseInt($('targetInput').value)||0;
@@ -640,7 +642,7 @@ function lightPass(){
   if(lim>0){
     const eff=(mode==='tw') ? (cache.xEff>=0?cache.xEff:displayCount) : displayCount;
     const rem=lim-eff;
-    sl.innerHTML='LIMIT '+(rem>=0?'残り <b style="color:var(--good)">'+rem+'</b>':'<b style="color:var(--ember)">'+(-rem)+' 超過</b>')+' / '+lim;
+    sl.innerHTML='LIMIT '+(rem>=0?tr('残り ')+'<b style="color:var(--good)">'+rem+'</b>':'<b style="color:var(--ember)">'+(-rem)+tr(' 超過')+'</b>')+' / '+lim;
   } else sl.textContent='';
 
   // delta vs snapshot
@@ -648,7 +650,7 @@ function lightPass(){
     const d=displayCount-lastSnapshot.count;
     $('deltaLine').style.display='';
     const dv=$('deltaVal');
-    dv.textContent=(d>=0?'+':'')+d.toLocaleString()+'字';
+    dv.textContent=(d>=0?'+':'')+d.toLocaleString()+tr("字");
     dv.className=d>0?'up':d<0?'down':'';
     $('deltaTime').textContent=lastSnapshot.time;
   } else $('deltaLine').style.display='none';
@@ -716,10 +718,10 @@ function heavyPass(){
   if(t.trim()!==''){
     let longSents=0;
     for(const s of sentArr) if(countCodePoints(s)>80) longSents++;
-    if(avgSent>60) addFlag('warn','平均文長が長め（'+avgSent+'字）。一文を分割すると読みやすくなります');
-    if(longSents>0) addFlag('warn','80字超の長文が '+longSents+' 箇所');
-    if(kanjiRatio>45) addFlag('warn','漢字比率が高め（'+kanjiRatio+'%）。硬い印象になりがちです');
-    if(avgSent<=60 && kanjiRatio<=38 && longSents===0) addFlag('ok','文長・漢字比率ともに読みやすい範囲です');
+    if(avgSent>60) addFlag('warn',tr("平均文長が長め（")+avgSent+tr("字）。一文を分割すると読みやすくなります"));
+    if(longSents>0) addFlag('warn',tr("80字超の長文が ")+longSents+tr(" 箇所"));
+    if(kanjiRatio>45) addFlag('warn',tr("漢字比率が高め（")+kanjiRatio+tr("%）。硬い印象になりがちです"));
+    if(avgSent<=60 && kanjiRatio<=38 && longSents===0) addFlag('ok',tr("文長・漢字比率ともに読みやすい範囲です"));
   }
 
   // bytes
@@ -921,7 +923,7 @@ function cursorInfo(){
 }
 
 function applyModeUI(){
-  $('stMode').textContent=MODES[mode].name;
+  $('stMode').textContent=tr(MODES[mode].name);
   $('moraSec').style.display= mode==='lyric'?'':'none';
   $('snsSec').style.display=(mode==='tw'||mode==='yt')?'':'none';
   document.querySelectorAll('.tbtn[data-mode]').forEach(x=>x.classList.toggle('on',x.dataset.mode===mode));
@@ -960,7 +962,7 @@ function persistSchedule(){
     localStorage.setItem(LS.gut,$('showGutter').checked?'1':'0');
     localStorage.setItem(LS.sv,$('moraSplitVowel').checked?'1':'0');
     localStorage.setItem(LS.ws,$('showWS').checked?'1':'0');
-    const sv=$('stSaved');sv.textContent='● SAVED';setTimeout(()=>sv.textContent='',900);
+    const sv=$('stSaved');sv.textContent=tr("● SAVED");setTimeout(()=>sv.textContent='',900);
   },1000);
 }
 function restore(){
@@ -1064,17 +1066,17 @@ $('snapBtn').addEventListener('click',()=>{
   const now=new Date();
   lastSnapshot={count:cache.displayCount,time:now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')};
   localStorage.setItem(LS.snap,JSON.stringify(lastSnapshot));
-  const b=$('snapBtn');b.textContent='SAVED';setTimeout(()=>b.textContent='SNAPSHOT',1000);
+  const b=$('snapBtn');b.textContent=tr("SAVED");setTimeout(()=>b.textContent=tr("SNAPSHOT"),1000);
   lightPass();
 });
 
 $('clearbtn').addEventListener('click',()=>{
-  if(ed.value && !confirm('テキストをクリアしますか？'))return;
+  if(ed.value && !confirm(tr("テキストをクリアしますか？")))return;
   ed.value='';ed.focus();analyzeNow();cursorInfo();
 });
 $('copybtn').addEventListener('click',async()=>{
   try{await navigator.clipboard.writeText(ed.value);
-    const b=$('copybtn');b.textContent='COPIED';setTimeout(()=>b.textContent='COPY',1200);}catch(e){}
+    const b=$('copybtn');b.textContent=tr("COPIED");setTimeout(()=>b.textContent=tr("COPY"),1200);}catch(e){}
 });
 
 // ---- OPEN: import text file (strips BOM, normalizes newlines to LF) ----
@@ -1085,15 +1087,15 @@ function loadTextIntoEditor(raw,fname){
   ed.value=t;
   ed.focus();ed.setSelectionRange(0,0);ed.scrollTop=0;
   analyzeNow();cursorInfo();
-  const b=$('openbtn');b.textContent='OPENED';setTimeout(()=>b.textContent='OPEN',1200);
+  const b=$('openbtn');b.textContent=tr("OPENED");setTimeout(()=>b.textContent=tr("OPEN"),1200);
 }
 function openTextFile(file){
   if(!file)return;
-  if(file.size>5*1024*1024){alert('5MBを超えるファイルは開けません：'+file.name);return;}
-  if(ed.value.trim() && !confirm('現在のテキストを破棄して「'+file.name+'」を開きますか？'))return;
+  if(file.size>5*1024*1024){alert(tr("5MBを超えるファイルは開けません：")+file.name);return;}
+  if(ed.value.trim() && !confirm(tr("現在のテキストを破棄して「")+file.name+tr("」を開きますか？")))return;
   const r=new FileReader();
   r.onload=()=>loadTextIntoEditor(String(r.result),file.name);
-  r.onerror=()=>alert('ファイルの読み込みに失敗しました：'+file.name);
+  r.onerror=()=>alert(tr("ファイルの読み込みに失敗しました：")+file.name);
   r.readAsText(file,'utf-8');
 }
 $('openbtn').addEventListener('click',()=>$('fileInput').click());
@@ -1124,7 +1126,7 @@ function buildFileName(){
   let title=[...firstLine].slice(0,16).join('')
     .replace(/[\\/:*?"<>|\u0000-\u001f]/g,'')
     .replace(/\s+/g,'_').trim();
-  const modeName=(MODES[mode]&&MODES[mode].name)?MODES[mode].name:'';
+  const modeName=(MODES[mode]&&MODES[mode].name)?tr(MODES[mode].name):'';
   return `TALLY_${stamp}${modeName?'_'+modeName:''}${title?'_'+title:''}.txt`;
 }
 $('savebtn').addEventListener('click',()=>{
@@ -1136,7 +1138,7 @@ $('savebtn').addEventListener('click',()=>{
   a.href=url;a.download=buildFileName();
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
-  const b=$('savebtn');b.textContent='SAVED';setTimeout(()=>b.textContent='SAVE .txt',1200);
+  const b=$('savebtn');b.textContent=tr("SAVED");setTimeout(()=>b.textContent=tr("SAVE .txt"),1200);
 });
 
 // ---- temporary save slots ----
@@ -1157,12 +1159,12 @@ function renderSlots(){
     const sp=btn.querySelector('.sp');
     if(slots[i]!==null){
       btn.classList.add('filled');
-      sp.textContent=slotPreview(slots[i])||'(空白のみ)';
-      btn.title='クリックでカーソル位置に差し戻し：'+slotPreview(slots[i]);
+      sp.textContent=slotPreview(slots[i])||tr("(空白のみ)");
+      btn.title=tr("クリックでカーソル位置に差し戻し：")+slotPreview(slots[i]);
     }else{
       btn.classList.remove('filled');
-      sp.textContent='空き';
-      btn.title='クリックで現在の本文をここに退避';
+      sp.textContent=tr("空き");
+      btn.title=tr("クリックで現在の本文をここに退避");
     }
   });
 }
@@ -1188,6 +1190,7 @@ document.querySelectorAll('.slot').forEach(btn=>{
 });
 
 // init
+applyLanguage();
 restore();
 loadSlots();renderSlots();
 applyModeUI();
@@ -1195,6 +1198,12 @@ loadPresets();
 analyzeNow();
 cursorInfo();
 ed.focus();
+$('languageSelect').addEventListener('change',()=>{
+  languagePreference=$('languageSelect').value;
+  try{localStorage.setItem('tally.language',languagePreference);}catch{}
+  refreshLanguage();
+});
+window.addEventListener('languagechange',()=>{if(languagePreference==='auto')refreshLanguage();});
 // re-measure once webfonts finish loading (metrics differ before IBM Plex Mono is ready)
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{layout.valid=false;heavyPass();});
 </script>
