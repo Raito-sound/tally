@@ -348,12 +348,26 @@ body::before{
 #statusbar b{color:var(--text);font-weight:500}
 #statusbar .seldim{color:var(--sel)}
 #statusbar .saved{color:var(--good)}
+
+/* Raito Studio Tools — shared application navigation */
+.studio-brand{display:flex;align-items:center;gap:10px;flex-shrink:0;text-decoration:none;color:inherit}
+.studio-mark{display:block;width:48px;height:28px;background:currentColor;mask:url('/raito-logo.svg') center/contain no-repeat;-webkit-mask:url('/raito-logo.svg') center/contain no-repeat}
+.studio-wordmark{font-family:'Chakra Petch',sans-serif;font-size:15px;font-weight:500;letter-spacing:.06em;white-space:nowrap}
+.studio-wordmark strong{font-weight:700}
+.studio-nav{display:flex;align-items:center;gap:3px;flex-shrink:0;margin-left:8px}
+.studio-nav a{font-family:'Chakra Petch',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;padding:7px 9px;text-decoration:none;color:inherit;opacity:.6;border:1px solid transparent;border-radius:3px}
+.studio-nav a:hover,.studio-nav a[aria-current="page"]{opacity:1;background:color-mix(in srgb,currentColor 7%,transparent);border-color:color-mix(in srgb,currentColor 20%,transparent)}
+.studio-brand:focus-visible,.studio-nav a:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+@media(max-width:620px){.studio-wordmark{font-size:12px}.studio-mark{width:35px;height:23px}.studio-brand{gap:6px}.studio-nav{margin-left:0}.studio-nav a{padding:6px;font-size:10px}}
+
+#appbar{gap:8px;min-height:50px;height:50px;flex-shrink:0}#appbar #hint{display:none}
+@media(max-width:950px){#appbar{flex-wrap:wrap;height:auto;min-height:86px;padding:6px 10px;align-content:center}#appbar .spacer{flex-basis:0}#appbar .btn{padding:5px 7px}}
 </style>
 </head>
 <body>
 
 <div id="appbar">
-  <div id="logo"><span class="name">TALLY</span><span class="sub">TEXT EDITOR / ANALYZER</span><span class="ver">v2026.07.08</span></div>
+<a class="studio-brand" href="https://raito.studio/" aria-label="Raito Studio home"><span class="studio-mark" aria-hidden="true"></span><span class="studio-wordmark"><strong>Raito</strong> Studio Tools</span></a><nav class="studio-nav" aria-label="Raito Studio apps"><a href="https://tally.raito.studio/" aria-current="page">TALLY</a><a href="https://carve.raito.studio/">CARVE</a><a href="https://keys.raito.studio/">KEYS</a></nav>
   <div class="spacer"></div>
   <span id="hint">原稿・歌詞・概要欄テキストを貼り付け</span>
   <button class="btn" id="openbtn">OPEN</button>
