@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- TALLY — Text Editor / Analyzer | version 2026.07.08
+<!-- TALLY — Text Editor / Analyzer | version 2026.09.19
      PERF REFACTOR (iOS対応):
      - 2段階計算: 軽量統計は即時(単一ループ/正規表現なし/rAF間引き)、重い解析は入力停止後に可変デバウンス
      - レイアウトキャッシュ: 行位置測定はテキスト/幅変更時のみ。スクロールはtransformのみ
@@ -127,7 +127,8 @@ body::before{
   flex:1;display:grid;grid-template-columns:1fr 340px;gap:0;
   position:relative;z-index:1;min-height:0;
 }
-@media(max-width:860px){#wrap{grid-template-columns:1fr}}
+/* 1カラム時：行高を明示しないとエディタ本体が高さ0に潰れる */
+@media(max-width:860px){#wrap{grid-template-columns:1fr;grid-template-rows:minmax(0,3fr) minmax(0,2fr)}#editorpane{border-right:0;border-bottom:1px solid var(--line)}}
 
 /* ---------- editor ---------- */
 #editorpane{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid var(--line)}
@@ -321,32 +322,56 @@ body::before{
 #presetRow .ppill .x{color:var(--dim);font-size:11px}
 #presetRow .ppill .x:hover{color:var(--ember)}
 
-/* ---------- temp save slots ---------- */
+/* ---------- temp save slots (3x3) ---------- */
 #slotbar{
-  flex:none;display:flex;align-items:center;gap:8px;padding:7px 12px;
+  flex:none;padding:6px 12px 8px;
   background:var(--panel2);border-top:1px solid var(--line);
 }
+#slothead{display:flex;align-items:center;gap:8px;min-height:22px}
 #slotbar .slabel{font-size:10px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;flex:none}
-#slotbar .shint{font-size:10px;color:var(--ph);letter-spacing:.03em;margin-left:auto;white-space:nowrap}
+#slotbar .scount{font-family:var(--mono);font-size:10px;color:var(--dim);flex:none}
+#slotbar .scount b{color:var(--amber);font-weight:500}
+#slotbar .shint{font-size:10px;color:var(--ph);letter-spacing:.03em;margin-left:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#slotbar .shint.msg{color:var(--amber)}
+#slotbar .shint .undo{color:var(--amber);text-decoration:underline;cursor:pointer;margin-left:6px}
+.sbtn{
+  flex:none;font-family:var(--ui);font-size:10px;letter-spacing:.06em;color:var(--dim);
+  background:var(--btn);border:1px solid var(--line2);border-radius:4px;padding:3px 8px;cursor:pointer;line-height:1.3;
+}
+.sbtn:hover{border-color:var(--dim);color:var(--text)}
+#slotgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:6px}
+#slotbar.collapsed #slotgrid{display:none}
+#slotbar.collapsed{padding-bottom:6px}
 .slot{
-  flex:0 1 180px;min-width:84px;display:flex;align-items:center;gap:7px;
+  min-width:0;display:flex;align-items:center;gap:7px;
   font-family:var(--ui);font-size:11px;letter-spacing:.02em;
-  color:var(--dim);background:var(--btn);border:1px dashed var(--line2);
-  border-radius:5px;padding:6px 9px;cursor:pointer;line-height:1.3;text-align:left;overflow:hidden;
+  color:var(--ph);background:var(--btn);border:1px dashed var(--line2);
+  border-radius:5px;padding:5px 6px 5px 8px;cursor:pointer;line-height:1.3;text-align:left;overflow:hidden;
 }
 .slot:hover{border-color:var(--dim)}
 .slot:active{transform:translateY(1px)}
+.slot:focus-visible{outline:2px solid var(--sel);outline-offset:1px}
 .slot .si{
   flex:none;width:16px;height:16px;border-radius:3px;display:flex;align-items:center;justify-content:center;
   font-family:var(--mono);font-size:10px;background:var(--btn-h);color:var(--dim);
 }
-.slot .sp{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);font-size:11px}
-.slot.filled{
-  border-style:solid;border-color:var(--amber);color:var(--amber);
-  background:var(--asoft);
+.slot .sp{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);font-size:11px;letter-spacing:0}
+.slot .sn{flex:none;font-family:var(--mono);font-size:9.5px;color:var(--dim);display:none}
+.slot .sx{
+  flex:none;display:none;width:18px;height:18px;border-radius:3px;border:0;background:transparent;
+  color:var(--dim);font-size:13px;line-height:1;cursor:pointer;padding:0;
 }
+.slot .sx:hover{background:var(--ember);color:#fff}
+.slot.filled{border-style:solid;border-color:var(--amber);color:var(--amber);background:var(--asoft)}
 .slot.filled .si{background:var(--amber);color:var(--acc-contrast)}
-.slot.filled .sp{color:var(--amber)}
+.slot.filled .sp{color:var(--text)}
+.slot.filled .sn{display:block}
+.slot.filled:hover .sx,.slot.filled:focus-within .sx{display:block}
+.slot.filled:hover .sn,.slot.filled:focus-within .sn{display:none}
+.slot.flash{animation:slotflash .45s ease-out}
+@keyframes slotflash{0%{box-shadow:0 0 0 3px var(--sel)}100%{box-shadow:0 0 0 0 transparent}}
+@media(max-width:620px){.slot .sn{display:none!important}#slotbar .shint{display:none}#slotbar .shint.msg{display:block}}
+@media (pointer:coarse){.slot{padding-top:8px;padding-bottom:8px}.slot .sx{width:24px;height:24px}.slot.filled .sx{display:block}.slot.filled .sn{display:none}}
 
 /* ---------- bottom status ---------- */
 #statusbar{
@@ -416,11 +441,14 @@ body::before{
       </div>
     </div>
     <div id="slotbar">
-      <span class="slabel"><span data-i18n="一時保存">一時保存</span></span>
-      <button class="slot" data-slot="0"><span class="si">1</span><span class="sp"><span data-i18n="空き">空き</span></span></button>
-      <button class="slot" data-slot="1"><span class="si">2</span><span class="sp"><span data-i18n="空き">空き</span></span></button>
-      <button class="slot" data-slot="2"><span class="si">3</span><span class="sp"><span data-i18n="空き">空き</span></span></button>
-      <span class="shint"><span data-i18n="空き=本文を退避 / 保持=カーソル位置へ差し戻し">空き=本文を退避 / 保持=カーソル位置へ差し戻し</span></span>
+      <div id="slothead">
+        <span class="slabel"><span data-i18n="一時保管">一時保管</span></span>
+        <span class="scount"><b id="slotUsed">0</b>/9</span>
+        <button class="sbtn" id="slotAdd" title="選択範囲（なければ全文）を最初の空きスロットへ" data-i18n-title="選択範囲（なければ全文）を最初の空きスロットへ"><span data-i18n="＋ 追加">＋ 追加</span></button>
+        <span class="shint" id="slotHint"></span>
+        <button class="sbtn" id="slotToggle" title="一時保管を開閉" data-i18n-title="一時保管を開閉">▾</button>
+      </div>
+      <div id="slotgrid"></div>
     </div>
   </div>
 
@@ -1151,58 +1179,153 @@ $('savebtn').addEventListener('click',()=>{
   const b=$('savebtn');b.textContent=tr("SAVED");setTimeout(()=>b.textContent=tr("SAVE .txt"),1200);
 });
 
-// ---- temporary save slots ----
-let slots=[null,null,null];
-const LS_SLOTS='tally.slots';
+// ---- temporary storage: 9 slots (copy in / insert out / delete when done) ----
+const SLOT_N=9, SLOT_PREVIEW=20;
+let slots=new Array(SLOT_N).fill(null);
+const LS_SLOTS='tally.slots', LS_SLOTS_OPEN='tally.slotsOpen';
+let slotUndo=null, slotMsgTimer=0;
 function loadSlots(){
-  try{const s=JSON.parse(localStorage.getItem(LS_SLOTS)||'null');if(Array.isArray(s)&&s.length===3)slots=s;}catch(e){}
+  try{
+    const s=JSON.parse(localStorage.getItem(LS_SLOTS)||'null');
+    // 旧版（3スロット）のデータもそのまま引き継ぐ
+    if(Array.isArray(s)){for(let i=0;i<SLOT_N;i++)slots[i]=(typeof s[i]==='string')?s[i]:null;}
+  }catch(e){}
+  const so=localStorage.getItem(LS_SLOTS_OPEN);
+  // 狭い画面では初期状態を畳む（エディタの高さ優先）
+  if(so==='0'||(so===null&&window.innerWidth<=620))$('slotbar').classList.add('collapsed');
 }
-function saveSlots(){localStorage.setItem(LS_SLOTS,JSON.stringify(slots));}
-function slotPreview(text){
-  const oneLine=text.replace(/\s+/g,' ').trim();
-  const head=[...oneLine].slice(0,10).join('');
-  return head + ([...oneLine].length>10?'…':'');
+function saveSlots(){
+  try{localStorage.setItem(LS_SLOTS,JSON.stringify(slots));return true;}
+  catch(e){slotMsg(tr("保存できませんでした（容量超過）"));return false;}
+}
+function slotPreview(text,n){
+  n=n||SLOT_PREVIEW;
+  const cp=[...text.replace(/\s+/g,' ').trim()];
+  return cp.slice(0,n).join('')+(cp.length>n?'…':'');
+}
+function slotLen(text){return [...text.replace(/\r?\n/g,'')].length;}
+function slotDefaultHint(){return tr("空き=保管（Shiftで本文から切り取り） / 保管済み=カーソル位置へ挿入 / ×=削除 / Alt+1–9");}
+function slotMsg(msg,undoable){
+  const h=$('slotHint');clearTimeout(slotMsgTimer);
+  h.textContent=msg;h.classList.add('msg');
+  if(undoable){
+    const u=document.createElement('span');u.className='undo';u.textContent=tr("元に戻す");
+    u.addEventListener('click',undoSlotDelete);h.appendChild(u);
+  }
+  slotMsgTimer=setTimeout(()=>{h.classList.remove('msg');h.textContent=slotDefaultHint();slotUndo=null;},undoable?7000:2500);
+}
+function buildSlots(){
+  const g=$('slotgrid');g.textContent='';
+  for(let i=0;i<SLOT_N;i++){
+    const d=document.createElement('div');
+    d.className='slot';d.dataset.slot=i;d.tabIndex=0;d.setAttribute('role','button');
+    const si=document.createElement('span');si.className='si';si.textContent=i+1;
+    const sp=document.createElement('span');sp.className='sp';
+    const sn=document.createElement('span');sn.className='sn';
+    const sx=document.createElement('button');sx.className='sx';sx.type='button';sx.textContent='×';
+    sx.addEventListener('click',e=>{e.stopPropagation();deleteSlot(i);});
+    d.append(si,sp,sn,sx);
+    // エディタの選択範囲とフォーカスを保つ（Shift+クリックでの選択崩れ防止）
+    d.addEventListener('mousedown',e=>e.preventDefault());
+    d.addEventListener('click',e=>handleSlot(i,e.shiftKey));
+    d.addEventListener('keydown',e=>{
+      if(e.target!==d)return;
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();handleSlot(i,e.shiftKey);}
+      else if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();deleteSlot(i);}
+    });
+    g.appendChild(d);
+  }
 }
 function renderSlots(){
-  document.querySelectorAll('.slot').forEach(btn=>{
-    const i=+btn.dataset.slot;
-    const sp=btn.querySelector('.sp');
-    if(slots[i]!==null){
-      btn.classList.add('filled');
-      sp.textContent=slotPreview(slots[i])||tr("(空白のみ)");
-      btn.title=tr("クリックでカーソル位置に差し戻し：")+slotPreview(slots[i]);
+  let used=0;
+  document.querySelectorAll('#slotgrid .slot').forEach(d=>{
+    const i=+d.dataset.slot,t=slots[i];
+    const sp=d.querySelector('.sp'),sn=d.querySelector('.sn'),sx=d.querySelector('.sx');
+    if(t!==null){
+      used++;
+      d.classList.add('filled');
+      sp.textContent=slotPreview(t)||tr("(空白のみ)");
+      sn.textContent=slotLen(t)+tr("字");
+      d.title=tr("クリックでカーソル位置に挿入：")+'\n'+slotPreview(t,200);
+      sx.title=tr("このスロットを削除");sx.setAttribute('aria-label',sx.title);
     }else{
-      btn.classList.remove('filled');
-      sp.textContent=tr("空き");
-      btn.title=tr("クリックで現在の本文をここに退避");
+      d.classList.remove('filled');
+      sp.textContent=tr("空き");sn.textContent='';
+      d.title=tr("クリックで選択範囲（なければ全文）を保管 / Shift+クリックで本文から切り取って保管");
     }
   });
+  $('slotUsed').textContent=used;
+  const h=$('slotHint');if(!h.classList.contains('msg'))h.textContent=slotDefaultHint();
+  $('slotToggle').textContent=$('slotbar').classList.contains('collapsed')?'▸':'▾';
 }
-function handleSlot(i){
-  if(slots[i]===null){
-    if(ed.value===''){return;}
-    slots[i]=ed.value;
-    ed.value='';
-  }else{
-    const text=slots[i];
-    const a=ed.selectionStart,b=ed.selectionEnd;
-    const v=ed.value;
-    ed.value=v.slice(0,a)+text+v.slice(b);
-    const np=a+text.length;
-    ed.setSelectionRange(np,np);
-    slots[i]=null;
+function flashSlot(i){
+  const d=document.querySelector('#slotgrid .slot[data-slot="'+i+'"]');if(!d)return;
+  d.classList.remove('flash');void d.offsetWidth;d.classList.add('flash');
+}
+function storeSlot(i,cut){
+  const a=ed.selectionStart,b=ed.selectionEnd;
+  const hasSel=a!==b;
+  const text=hasSel?ed.value.slice(a,b):ed.value;
+  if(text===''){slotMsg(tr("保管するテキストがありません"));return;}
+  slots[i]=text;
+  if(!saveSlots()){slots[i]=null;return;}
+  if(cut){
+    if(hasSel)replaceRange(a,b,'',a);else replaceRange(0,ed.value.length,'',0);
   }
-  saveSlots();renderSlots();
+  renderSlots();flashSlot(i);
+  slotMsg((i+1)+' ← '+(hasSel?tr("選択範囲を保管"):tr("全文を保管"))+(cut?tr("（切り取り）"):''));
   ed.focus();analyzeNow();cursorInfo();
 }
-document.querySelectorAll('.slot').forEach(btn=>{
-  btn.addEventListener('click',()=>handleSlot(+btn.dataset.slot));
+function insertSlot(i){
+  const text=slots[i];
+  const a=ed.selectionStart,b=ed.selectionEnd;
+  ed.focus();
+  replaceRange(a,b,text,a+text.length);
+  flashSlot(i);
+  slotMsg((i+1)+' → '+tr("挿入しました（スロットは保持）"));
+  analyzeNow();cursorInfo();
+}
+function handleSlot(i,shift){
+  if(slots[i]===null)storeSlot(i,!!shift);else insertSlot(i);
+}
+function deleteSlot(i){
+  if(slots[i]===null)return;
+  slotUndo={i,text:slots[i]};
+  slots[i]=null;saveSlots();renderSlots();
+  slotMsg((i+1)+' '+tr("を削除しました"),true);
+}
+function undoSlotDelete(){
+  if(!slotUndo)return;
+  let i=slotUndo.i;
+  if(slots[i]!==null){i=slots.indexOf(null);if(i<0){slotMsg(tr("空きスロットがありません"));return;}}
+  slots[i]=slotUndo.text;slotUndo=null;
+  saveSlots();renderSlots();flashSlot(i);slotMsg((i+1)+' '+tr("を復元しました"));
+}
+$('slotAdd').addEventListener('mousedown',e=>e.preventDefault());
+$('slotAdd').addEventListener('click',()=>{
+  const i=slots.indexOf(null);
+  if(i<0){slotMsg(tr("空きスロットがありません"));return;}
+  if($('slotbar').classList.contains('collapsed'))toggleSlots();
+  storeSlot(i,false);
+});
+function toggleSlots(){
+  const c=$('slotbar').classList.toggle('collapsed');
+  try{localStorage.setItem(LS_SLOTS_OPEN,c?'0':'1');}catch(e){}
+  renderSlots();layout.valid=false;analyzeNow();
+}
+$('slotToggle').addEventListener('click',toggleSlots);
+// Alt+1–9：クリックと同じ動作（Shift併用で切り取り保管）
+document.addEventListener('keydown',e=>{
+  if(!e.altKey||e.ctrlKey||e.metaKey||e.isComposing)return;
+  const m=/^Digit([1-9])$/.exec(e.code||'');if(!m)return;
+  e.preventDefault();
+  handleSlot(+m[1]-1,e.shiftKey);
 });
 
 // init
 applyLanguage();
 restore();
-loadSlots();renderSlots();
+buildSlots();loadSlots();renderSlots();
 applyModeUI();
 loadPresets();
 analyzeNow();

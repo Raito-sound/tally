@@ -376,6 +376,78 @@ const TRANSLATIONS = {
   "● SAVED": {
     "ja": "● SAVED",
     "en": "● 保存済み"
+  },
+  "一時保管": {
+    "ja": "一時保管",
+    "en": "Holding slots"
+  },
+  "＋ 追加": {
+    "ja": "＋ 追加",
+    "en": "+ ADD"
+  },
+  "選択範囲（なければ全文）を最初の空きスロットへ": {
+    "ja": "選択範囲（なければ全文）を最初の空きスロットへ",
+    "en": "Store the selection (or the whole text) in the first empty slot"
+  },
+  "一時保管を開閉": {
+    "ja": "一時保管を開閉",
+    "en": "Show / hide holding slots"
+  },
+  "空き=保管（Shiftで本文から切り取り） / 保管済み=カーソル位置へ挿入 / ×=削除 / Alt+1–9": {
+    "ja": "空き=保管（Shiftで本文から切り取り） / 保管済み=カーソル位置へ挿入 / ×=削除 / Alt+1–9",
+    "en": "Empty: store (Shift = cut) / Filled: insert at cursor / × delete / Alt+1–9"
+  },
+  "元に戻す": {
+    "ja": "元に戻す",
+    "en": "Undo"
+  },
+  "クリックでカーソル位置に挿入：": {
+    "ja": "クリックでカーソル位置に挿入：",
+    "en": "Click to insert at cursor:"
+  },
+  "このスロットを削除": {
+    "ja": "このスロットを削除",
+    "en": "Delete this slot"
+  },
+  "クリックで選択範囲（なければ全文）を保管 / Shift+クリックで本文から切り取って保管": {
+    "ja": "クリックで選択範囲（なければ全文）を保管 / Shift+クリックで本文から切り取って保管",
+    "en": "Click to store the selection (or whole text) / Shift+click to cut it out of the editor"
+  },
+  "保管するテキストがありません": {
+    "ja": "保管するテキストがありません",
+    "en": "Nothing to store"
+  },
+  "選択範囲を保管": {
+    "ja": "選択範囲を保管",
+    "en": "selection stored"
+  },
+  "全文を保管": {
+    "ja": "全文を保管",
+    "en": "whole text stored"
+  },
+  "（切り取り）": {
+    "ja": "（切り取り）",
+    "en": " (cut)"
+  },
+  "挿入しました（スロットは保持）": {
+    "ja": "挿入しました（スロットは保持）",
+    "en": "inserted (slot kept)"
+  },
+  "を削除しました": {
+    "ja": "を削除しました",
+    "en": "deleted"
+  },
+  "を復元しました": {
+    "ja": "を復元しました",
+    "en": "restored"
+  },
+  "空きスロットがありません": {
+    "ja": "空きスロットがありません",
+    "en": "No empty slot"
+  },
+  "保存できませんでした（容量超過）": {
+    "ja": "保存できませんでした（容量超過）",
+    "en": "Could not save (storage full)"
   }
 };
 function resolveLanguage(preference, languages){
